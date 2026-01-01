@@ -1,37 +1,36 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { motion, AnimatePresence } from "framer-motion";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  getCurrentUser,
-  setCurrentUser,
-  logout as logoutUser,
   createUser,
-  getUserByEmail,
+  getCurrentUser,
   getTripsForUser,
-  saveTrip,
+  getUserByEmail,
   getUserById,
-  type User,
-  type Trip,
-  type Activity,
-  type Place,
+  logout as logoutUser,
+  saveTrip,
+  setCurrentUser,
   type Accommodation,
-  type Transport,
+  type Activity,
   type Expense,
+  type Transport,
+  type Trip,
+  type User
 } from "@/utils/storage";
 import { getTripsForUserFromSupabase } from '@/utils/supabase';
 import { t, type Language } from "@/utils/translations";
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -42,6 +41,7 @@ export default function App() {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [autoSaveStatus, setAutoSaveStatus] = useState<"saved" | "saving" | null>(null);
+  const [tripUsers, setTripUsers] = useState<User[]>([]);
   // Language state - loaded before user check
   const [language, setLanguage] = useState<Language>(() => {
     const saved = localStorage.getItem("app_language");
@@ -78,12 +78,15 @@ export default function App() {
 
   // Load user and trips on mount
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser);
-      loadTrips(currentUser.id);
-      setView("dashboard");
-    }
+    const init = async () => {
+      const currentUser = await getCurrentUser();
+      if (currentUser) {
+        setUser(currentUser);
+        await loadTrips(currentUser.id);
+        setView("dashboard");
+      }
+    };
+    init();
   }, []);
 
   // Auto-save trip changes
@@ -110,7 +113,7 @@ export default function App() {
     if (!user) return;
     
     const interval = setInterval(async () => {
-      const savedTrips = getTripsForUser(user.id);
+      const savedTrips = await getTripsForUser(user.id);
       // Try to sync from Supabase
       try {
         const supabaseTrips = await getTripsForUserFromSupabase(user.id);
@@ -162,8 +165,21 @@ export default function App() {
     return () => clearInterval(interval);
   }, [user, activeTrip]);
 
-  const loadTrips = (userId: string) => {
-    const userTrips = getTripsForUser(userId);
+  // Fetch users for the active trip
+  useEffect(() => {
+    if (activeTrip) {
+      const fetchUsers = async () => {
+        const users = await Promise.all(activeTrip.users.map(id => getUserById(id)));
+        setTripUsers(users.filter(Boolean) as User[]);
+      };
+      fetchUsers();
+    } else {
+      setTripUsers([]);
+    }
+  }, [activeTrip?.users]);
+
+  const loadTrips = async (userId: string) => {
+    const userTrips = await getTripsForUser(userId);
     setTrips(userTrips);
   };
 
@@ -173,24 +189,27 @@ export default function App() {
       return;
     }
 
-    if (getUserByEmail(email)) {
-      alert("Пользователь с таким email уже существует");
-      return;
-    }
+    const checkAndRegister = async () => {
+      if (await getUserByEmail(email)) {
+        alert("Пользователь с таким email уже существует");
+        return;
+      }
 
-    const newUser = createUser(email, name, password);
-    setCurrentUser(newUser);
-    setUser(newUser);
-    setView("dashboard");
-    loadTrips(newUser.id);
-    // Clear form fields
-    setEmail("");
-    setName("");
-    setPassword("");
+      const newUser = await createUser(email, name, password);
+      setCurrentUser(newUser);
+      setUser(newUser);
+      setView("dashboard");
+      await loadTrips(newUser.id);
+      // Clear form fields
+      setEmail("");
+      setName("");
+      setPassword("");
+    };
+    checkAndRegister();
   };
 
   const handleLogin = async (email: string, password: string) => {
-    const foundUser = getUserByEmail(email);
+    const foundUser = await getUserByEmail(email);
     if (!foundUser || foundUser.password !== password) {
       alert(translate("invalid_credentials"));
       return;
@@ -218,7 +237,7 @@ export default function App() {
       }
     } else {
       setView("dashboard");
-      loadTrips(foundUser.id);
+      await loadTrips(foundUser.id);
     }
     
     // Clear form fields
@@ -446,10 +465,10 @@ export default function App() {
     setMessageInput("");
   };
 
-  const inviteUserToTrip = () => {
+  const inviteUserToTrip = async () => {
     if (!inviteEmail.trim() || !activeTrip || !user) return;
 
-    const invitedUser = getUserByEmail(inviteEmail);
+    const invitedUser = await getUserByEmail(inviteEmail);
     if (!invitedUser) {
       alert("Пользователь с таким email не найден");
       return;
@@ -469,7 +488,7 @@ export default function App() {
     };
 
     setActiveTrip(updated);
-    saveTrip(updated);
+    await saveTrip(updated);
     setInviteEmail("");
     setInviteDialogOpen(false);
     alert(`${invitedUser.name} ${translate("added_to_trip")}!`);
@@ -963,7 +982,7 @@ export default function App() {
   };
 
   if (view === "plan" && activeTrip && user) {
-    const tripUsers = activeTrip.users.map(id => getUserById(id)).filter(Boolean) as User[];
+    // tripUsers is already fetched in useEffect
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 pt-20">
@@ -1304,7 +1323,7 @@ export default function App() {
                       <h3 className="font-semibold mb-3 text-green-700">{category}</h3>
                       <div className="space-y-2">
                         {expenses.map((exp) => {
-                          const paidByUser = getUserById(exp.paidBy);
+                          const paidByUser = tripUsers.find(u => u.id === exp.paidBy);
                           const perPerson = exp.amount / exp.sharedBy.length;
                           return (
                             <div key={exp.id} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded gap-2">
@@ -2822,7 +2841,7 @@ export default function App() {
   }
 
   if (view === "summary" && activeTrip) {
-    const tripUsers = activeTrip.users.map(id => getUserById(id)).filter(Boolean) as User[];
+    // tripUsers is already fetched in useEffect
     
     // Group activities by day
     const activitiesArray = (activeTrip.activities as unknown as Activity[]) || [];
