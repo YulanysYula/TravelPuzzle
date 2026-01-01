@@ -15,9 +15,15 @@ export const isSupabaseConfigured = () => {
 };
 
 // Создаем клиент только если Supabase настроен
-export const supabase = isSupabaseConfigured() 
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : null;
+export const supabase = (() => {
+  const configured = isSupabaseConfigured();
+  if (!configured) {
+    console.warn("Supabase is not configured. Check your .env file.");
+    return null;
+  }
+  console.log("Supabase client initialized successfully.");
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+})();
 
 // Типы для Supabase
 export interface SupabaseTrip {
@@ -32,6 +38,102 @@ export interface SupabaseTrip {
   trip_data: any; // JSON данные поездки
   created_at: string;
 }
+
+export interface SupabaseUser {
+  id: string;
+  email: string;
+  name: string;
+  password: string;
+  created_at: string;
+}
+
+// Функции для работы с пользователями в Supabase
+export const saveUserToSupabase = async (user: any) => {
+  console.log(isSupabaseConfigured());
+  console.log(supabase);
+  debugger
+  if (!isSupabaseConfigured() || !supabase) return null;
+  debugger
+  
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .upsert({
+        id: user.id,
+        email: user.email.toLowerCase(),
+        name: user.name,
+        password: user.password,
+        created_at: user.createdAt || new Date().toISOString(),
+      });
+
+      debugger
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    debugger
+    if (isSupabaseConfigured()) {
+      console.warn('Error saving user to Supabase:', error);
+    }
+    return null;
+  }
+};
+
+export const getUserByEmailFromSupabase = async (email: string) => {
+  if (!isSupabaseConfigured() || !supabase) return null;
+  
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows found"
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      password: data.password,
+      createdAt: new Date(data.created_at),
+    };
+  } catch (error) {
+    if (isSupabaseConfigured()) {
+      console.warn('Error getting user by email from Supabase:', error);
+    }
+    return null;
+  }
+};
+
+export const getUserByIdFromSupabase = async (id: string) => {
+  if (!isSupabaseConfigured() || !supabase) return null;
+  
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      password: data.password,
+      createdAt: new Date(data.created_at),
+    };
+  } catch (error) {
+    if (isSupabaseConfigured()) {
+      console.warn('Error getting user by id from Supabase:', error);
+    }
+    return null;
+  }
+};
 
 // Функции для работы с поездками в Supabase
 export const saveTripToSupabase = async (trip: any) => {
@@ -98,7 +200,7 @@ export const getTripsForUserFromSupabase = async (userId: string) => {
     const { data, error } = await supabase
       .from('trips')
       .select('*')
-      .contains('users', userId); // Исправлено: передаем строку, а не массив
+      .contains('users', [userId]); // Передаем массив для корректной фильтрации TEXT[]
 
     if (error) throw error;
     return data?.map(t => t.trip_data) || [];
@@ -154,6 +256,78 @@ export const generateShareToken = async (tripId: number) => {
     }
     // Возвращаем токен даже при ошибке, чтобы шаринг работал локально
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  }
+};
+
+// Удаление поездки из Supabase
+export const deleteTripFromSupabase = async (tripId: number) => {
+  if (!isSupabaseConfigured() || !supabase) {
+    return false;
+  }
+  
+  try {
+    const { error } = await supabase
+      .from('trips')
+      .delete()
+      .eq('id', tripId);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    if (isSupabaseConfigured()) {
+      console.warn('Error deleting trip from Supabase:', error);
+    }
+    return false;
+  }
+};
+
+// Получение всех поездок из Supabase
+export const getAllTripsFromSupabase = async () => {
+  if (!isSupabaseConfigured() || !supabase) {
+    return null;
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from('trips')
+      .select('*')
+      .order('updated_at', { ascending: false });
+
+    if (error) throw error;
+    return data?.map(t => t.trip_data) || [];
+  } catch (error) {
+    if (isSupabaseConfigured()) {
+      console.warn('Error getting all trips from Supabase:', error);
+    }
+    return null;
+  }
+};
+
+// Получение всех пользователей из Supabase
+export const getAllUsersFromSupabase = async () => {
+  if (!isSupabaseConfigured() || !supabase) {
+    return null;
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data?.map(u => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      password: u.password,
+      createdAt: new Date(u.created_at),
+    })) || [];
+  } catch (error) {
+    if (isSupabaseConfigured()) {
+      console.warn('Error getting all users from Supabase:', error);
+    }
+    return null;
   }
 };
 
