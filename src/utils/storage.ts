@@ -38,6 +38,8 @@ export interface Expense {
   category: string;
   paidBy: string; // User ID
   sharedBy: string[]; // User IDs who share this expense
+  splitType?: 'equal' | 'shares';
+  split?: Record<string, number>; // User ID -> amount or share
   currency?: string; // Валюта (RUB, USD, EUR, etc.)
   createdAt: Date;
 }
@@ -190,10 +192,8 @@ export const getUsers = async (): Promise<User[]> => {
 
 export const saveUser = async (user: User): Promise<void> => {
   // Save to Supabase first (primary)
-  debugger
   try {
     const { saveUserToSupabase } = await import("./supabase");
-    debugger
     await saveUserToSupabase(user);
   } catch (error) {
     console.warn("Failed to save user to Supabase:", error);
@@ -391,5 +391,85 @@ export const setCurrentUser = (user: User | null): void => {
 
 export const logout = (): void => {
   setCurrentUser(null);
+};
+
+// Expense logic
+export interface BalanceSummary {
+  userId: string;
+  balance: number;
+}
+
+export interface Debt {
+  from: string;
+  to: string;
+  amount: number;
+}
+
+export const calculateBalances = (trip: Trip): Record<string, number> => {
+  const balances: Record<string, number> = {};
+  
+  // Initialize balances
+  trip.users.forEach(userId => {
+    balances[userId] = 0;
+  });
+
+  (trip.expenses || []).forEach(expense => {
+    // Payer gets back what they paid
+    balances[expense.paidBy] = (balances[expense.paidBy] || 0) + expense.amount;
+
+    // Each participant owes their share
+    if (expense.splitType === 'shares' && expense.split) {
+      Object.entries(expense.split).forEach(([userId, share]) => {
+        balances[userId] = (balances[userId] || 0) - share;
+      });
+    } else {
+      // Default: equal split among sharedBy
+      const participants = expense.sharedBy.length > 0 ? expense.sharedBy : trip.users;
+      const share = expense.amount / participants.length;
+      participants.forEach(userId => {
+        balances[userId] = (balances[userId] || 0) - share;
+      });
+    }
+  });
+
+  return balances;
+};
+
+export const settleDebts = (balances: Record<string, number>): Debt[] => {
+  const debtors = Object.entries(balances)
+    .filter(([_, balance]) => balance < -0.01)
+    .map(([userId, balance]) => ({ userId, balance: Math.abs(balance) }))
+    .sort((a, b) => b.balance - a.balance);
+
+  const creditors = Object.entries(balances)
+    .filter(([_, balance]) => balance > 0.01)
+    .map(([userId, balance]) => ({ userId, balance }))
+    .sort((a, b) => b.balance - a.balance);
+
+  const debts: Debt[] = [];
+  let dIdx = 0;
+  let cIdx = 0;
+
+  while (dIdx < debtors.length && cIdx < creditors.length) {
+    const debtor = debtors[dIdx];
+    const creditor = creditors[cIdx];
+    
+    const amount = Math.min(debtor.balance, creditor.balance);
+    if (amount > 0.01) {
+      debts.push({
+        from: debtor.userId,
+        to: creditor.userId,
+        amount: Number(amount.toFixed(2))
+      });
+    }
+
+    debtor.balance -= amount;
+    creditor.balance -= amount;
+
+    if (debtor.balance < 0.01) dIdx++;
+    if (creditor.balance < 0.01) cIdx++;
+  }
+
+  return debts;
 };
 

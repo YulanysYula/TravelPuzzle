@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  calculateBalances,
   createUser,
   getCurrentUser,
   getTripsForUser,
@@ -23,6 +24,7 @@ import {
   saveTrip,
   saveTripToCache,
   setCurrentUser,
+  settleDebts,
   type Accommodation,
   type Activity,
   type Expense,
@@ -79,7 +81,7 @@ export default function App() {
   const [password, setPassword] = useState("");
   // New features state
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
-  const [newExpense, setNewExpense] = useState({ description: "", amount: "", category: "", sharedBy: [] as string[], currency: "RUB" });
+  const [newExpense, setNewExpense] = useState({ description: "", amount: "", category: "", sharedBy: [] as string[], currency: "RUB", paidBy: "", splitType: 'equal' as 'equal' | 'shares', split: {} as Record<string, number> });
   // New dialogs
   const [placeDialogOpen, setPlaceDialogOpen] = useState(false);
   const [activityDialogOpen, setActivityDialogOpen] = useState(false);
@@ -498,6 +500,9 @@ export default function App() {
     const amount = parseFloat(newExpense.amount);
     const sharedBy = newExpense.sharedBy.length > 0 ? newExpense.sharedBy : activeTrip.users;
     const currency = newExpense.currency || activeTrip.currency || "RUB";
+    const paidBy = newExpense.paidBy || editingItem.paidBy;
+    const splitType = newExpense.splitType;
+    const split = newExpense.split;
     
     const updated: Trip = {
       ...activeTrip,
@@ -507,8 +512,11 @@ export default function App() {
           description: newExpense.description,
           amount,
           category: newExpense.category,
+          paidBy,
           sharedBy,
           currency,
+          splitType,
+          split,
         } : exp
       ),
       updatedAt: new Date(),
@@ -517,7 +525,7 @@ export default function App() {
     saveTrip(updated);
     setEditExpenseDialogOpen(false);
     setEditingItem(null);
-    setNewExpense({ description: "", amount: "", category: "", sharedBy: [], currency: activeTrip.currency || "RUB" });
+    setNewExpense({ description: "", amount: "", category: "", sharedBy: [], currency: activeTrip.currency || "RUB", paidBy: "", splitType: 'equal', split: {} });
     setFormErrors({});
   };
 
@@ -645,14 +653,19 @@ export default function App() {
     const amount = parseFloat(newExpense.amount);
     const sharedBy = newExpense.sharedBy.length > 0 ? newExpense.sharedBy : activeTrip.users;
     const currency = newExpense.currency || activeTrip.currency || "RUB";
+    const paidBy = newExpense.paidBy || user.id;
+    const splitType = newExpense.splitType;
+    const split = newExpense.split;
     
     const expense: Expense = {
       id: Date.now().toString(),
       description: newExpense.description,
       amount,
       category: newExpense.category || (language === "ru" ? "Другое" : "Other"),
-      paidBy: user.id,
+      paidBy,
       sharedBy,
+      splitType,
+      split,
       currency,
       createdAt: new Date(),
     };
@@ -666,7 +679,7 @@ export default function App() {
     const withProgress = { ...updated, progress: calculateProgress(updated) };
     setActiveTrip(withProgress);
     saveTrip(withProgress);
-    setNewExpense({ description: "", amount: "", category: "", sharedBy: [], currency: activeTrip.currency || "RUB" });
+    setNewExpense({ description: "", amount: "", category: "", sharedBy: [], currency: activeTrip.currency || "RUB", paidBy: "", splitType: 'equal', split: {} });
     setFormErrors({});
     setExpenseDialogOpen(false);
   };
@@ -676,12 +689,7 @@ export default function App() {
     return (activeTrip.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
   };
 
-  const getUserExpenses = (userId: string) => {
-    if (!activeTrip) return 0;
-    return (activeTrip.expenses || [])
-      .filter(exp => exp.sharedBy.includes(userId))
-      .reduce((sum, exp) => sum + (exp.amount / exp.sharedBy.length), 0);
-  };
+
 
   // Place management
   const addPlace = () => {
@@ -1079,7 +1087,7 @@ export default function App() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                {translate("my_trips")}, {user?.name}! 👋
+                {translate("welcome")}, {user?.name}! 👋
               </h1>
               <p className="text-gray-600 mt-2">{translate("my_trips")}</p>
             </div>
@@ -1098,10 +1106,10 @@ export default function App() {
             >
               <div className="text-6xl mb-4">🗺️</div>
               <h2 className="text-2xl font-semibold text-gray-700 mb-2">
-                У вас пока нет поездок
+                {translate("no_trips")}
               </h2>
               <p className="text-gray-500 mb-6">
-                Создайте первую поездку, чтобы начать планирование
+                {translate("create_first_trip")}
               </p>
               <Button
                 onClick={createTrip}
@@ -1537,124 +1545,6 @@ export default function App() {
             </Card>
           </motion.div>
 
-          {/* Budget Section - Separate Block */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="shadow-2xl border-0 bg-white hover:shadow-3xl transition-all duration-300">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent flex items-center gap-2">
-                    💰 {translate("budget_expenses")}
-                  </h2>
-                  <Button
-                    onClick={() => {
-                      setFormErrors({});
-                      setExpenseDialogOpen(true);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="border-green-300 text-green-600 hover:bg-green-50"
-                  >
-                    + {translate("add_expense")}
-                  </Button>
-                </div>
-                
-                {/* Expenses by Category */}
-                <div className="space-y-4 mb-4">
-                  {Object.entries(
-                    (activeTrip.expenses || []).reduce((acc, exp) => {
-                      const cat = exp.category || "Другое";
-                      if (!acc[cat]) acc[cat] = [];
-                      acc[cat].push(exp);
-                      return acc;
-                    }, {} as Record<string, typeof activeTrip.expenses>)
-                  ).map(([category, expenses]) => (
-                    <div key={category} className="p-4 border-2 border-green-100 rounded-xl bg-white shadow-sm">
-                      <h3 className="font-semibold mb-3 text-green-700">{category}</h3>
-                      <div className="space-y-2">
-                        {expenses.map((exp) => {
-                          const paidByUser = tripUsers.find(u => u.id === exp.paidBy);
-                          const perPerson = exp.amount / exp.sharedBy.length;
-                          return (
-                            <div key={exp.id} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded gap-2">
-                              <span className="text-gray-700 flex-1">{exp.description} - {paidByUser?.name}</span>
-                              <span className="font-medium text-green-700">{exp.amount.toFixed(2)} {exp.currency || "₽"} <span className="text-gray-500">({perPerson.toFixed(2)} {exp.currency || "₽"}/чел)</span></span>
-                              <Button
-                                onClick={() => {
-                                  setEditingItem(exp);
-                                  setNewExpense({
-                                    description: exp.description,
-                                    amount: exp.amount.toString(),
-                                    category: exp.category,
-                                    sharedBy: exp.sharedBy,
-                                    currency: exp.currency || activeTrip?.currency || "RUB",
-                                  });
-                                  setEditExpenseDialogOpen(true);
-                                  setFormErrors({});
-                                }}
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-600 hover:bg-blue-50"
-                              >
-                                ✏️
-                              </Button>
-                              <Button
-                                onClick={() => {
-                                  const updated = {
-                                    ...activeTrip,
-                                    expenses: (activeTrip.expenses || []).filter(e => e.id !== exp.id),
-                                    updatedAt: new Date(),
-                                  };
-                                  setActiveTrip(updated);
-                                  saveTrip(updated);
-                                }}
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-600 hover:bg-red-50"
-                              >
-                                ×
-                              </Button>
-                            </div>
-                          );
-                        })}
-                          <div className="pt-2 border-t border-green-200 font-semibold text-green-700">
-                           {translate("total_category")}: {expenses.reduce((sum, e) => sum + e.amount, 0).toFixed(2)} {activeTrip.currency || "RUB"}
-                          </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Debts */}
-                <div className="pt-4 border-t border-green-200">
-                  <h3 className="font-semibold mb-3 text-gray-700">{translate("debts")}:</h3>
-                  <div className="space-y-2">
-                    {tripUsers.map((u) => {
-                      const userExpenses = getUserExpenses(u.id);
-                      const userPaid = (activeTrip.expenses || [])
-                        .filter(exp => exp.paidBy === u.id)
-                        .reduce((sum, exp) => sum + exp.amount, 0);
-                      const debt = userExpenses - userPaid;
-                      return (
-                        <div key={u.id} className="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-                          <span className="font-medium text-gray-700">{u.name}</span>
-                          <span className={`font-semibold ${debt > 0 ? "text-red-600" : debt < 0 ? "text-green-600" : "text-gray-600"}`}>
-                            {debt > 0 ? `${translate("owes")}: ${debt.toFixed(2)} ${activeTrip.currency || "RUB"}` : debt < 0 ? `${translate("owed")}: ${Math.abs(debt).toFixed(2)} ${activeTrip.currency || "RUB"}` : translate("balance")}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-green-200 font-bold text-lg text-green-700 bg-green-50 p-3 rounded-lg">
-                    {translate("total_spent")}: {getTotalExpenses().toFixed(2)} {activeTrip.currency || "RUB"}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
 
           {/* Activities Section - Separate Block */}
           <motion.div
@@ -2176,6 +2066,145 @@ export default function App() {
             </Card>
           </motion.div>
 
+          {/* Budget Section - Separate Block */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Card className="shadow-2xl border-0 bg-white hover:shadow-3xl transition-all duration-300">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent flex items-center gap-2">
+                    💰 {translate("budget_expenses")}
+                  </h2>
+                  <Button
+                    onClick={() => {
+                      setFormErrors({});
+                      setExpenseDialogOpen(true);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="border-green-300 text-green-600 hover:bg-green-50"
+                  >
+                    + {translate("add_expense")}
+                  </Button>
+                </div>
+                
+                {/* Expenses by Category */}
+                <div className="space-y-4 mb-4">
+                  {Object.entries(
+                    (activeTrip.expenses || []).reduce((acc, exp) => {
+                      const cat = exp.category || "Другое";
+                      if (!acc[cat]) acc[cat] = [];
+                      acc[cat].push(exp);
+                      return acc;
+                    }, {} as Record<string, typeof activeTrip.expenses>)
+                  ).map(([category, expenses]) => (
+                    <div key={category} className="p-4 border-2 border-green-100 rounded-xl bg-white shadow-sm">
+                      <h3 className="font-semibold mb-3 text-green-700">{category}</h3>
+                      <div className="space-y-2">
+                        {expenses.map((exp) => {
+                          const paidByUser = tripUsers.find(u => u.id === exp.paidBy);
+                          const perPerson = exp.amount / exp.sharedBy.length;
+                          return (
+                            <div key={exp.id} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded gap-2">
+                              <span className="text-gray-700 flex-1">{exp.description} - {paidByUser?.name}</span>
+                              <span className="font-medium text-green-700">{exp.amount.toFixed(2)} {exp.currency || "₽"} <span className="text-gray-500">({perPerson.toFixed(2)} {exp.currency || "₽"}/чел)</span></span>
+                              <Button
+                                onClick={() => {
+                                  setEditingItem(exp);
+                                  setNewExpense({
+                                    description: exp.description,
+                                    amount: exp.amount.toString(),
+                                    category: exp.category,
+                                    sharedBy: exp.sharedBy,
+                                    currency: exp.currency || activeTrip?.currency || "RUB",
+                                    paidBy: exp.paidBy,
+                                    splitType: exp.splitType || 'equal',
+                                    split: exp.split || {},
+                                  });
+                                  setEditExpenseDialogOpen(true);
+                                  setFormErrors({});
+                                }}
+                                variant="ghost"
+                                size="sm"
+                                className="text-blue-600 hover:bg-blue-50"
+                              >
+                                ✏️
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  const updated = {
+                                    ...activeTrip,
+                                    expenses: (activeTrip.expenses || []).filter(e => e.id !== exp.id),
+                                    updatedAt: new Date(),
+                                  };
+                                  setActiveTrip(updated);
+                                  saveTrip(updated);
+                                }}
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:bg-red-50"
+                              >
+                                ×
+                              </Button>
+                            </div>
+                          );
+                        })}
+                          <div className="pt-2 border-t border-green-200 font-semibold text-green-700">
+                           {translate("total_category")}: {expenses.reduce((sum, e) => sum + e.amount, 0).toFixed(2)} {activeTrip.currency || "RUB"}
+                          </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* New Debts and Settlement Logic */}
+                <div className="pt-4 border-t border-green-200">
+                  <h3 className="font-semibold mb-3 text-gray-700">{translate("balance_summary")}:</h3>
+                  <div className="space-y-2">
+                    {(() => {
+                      const balances = calculateBalances(activeTrip);
+                      return tripUsers.map((u) => {
+                        const balance = balances[u.id] || 0;
+                        return (
+                          <div key={u.id} className="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+                            <span className="font-medium text-gray-700">{u.name}</span>
+                            <span className={`font-semibold ${balance < -0.01 ? "text-red-600" : balance > 0.01 ? "text-green-600" : "text-gray-600"}`}>
+                              {balance < -0.01 ? `${translate("owes")}: ${Math.abs(balance).toFixed(2)} ${activeTrip.currency || "RUB"}` : balance > 0.01 ? `${translate("owed")}: ${balance.toFixed(2)} ${activeTrip.currency || "RUB"}` : "0.00"}
+                            </span>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+
+                  <h3 className="font-semibold mt-6 mb-3 text-gray-700">{translate("who_summarize")}:</h3>
+                  <div className="space-y-2">
+                    {(() => {
+                      const balances = calculateBalances(activeTrip);
+                      const debts = settleDebts(balances);
+                      if (debts.length === 0) return <p className="text-sm text-gray-500 italic">{translate("no_debts")}</p>;
+                      return debts.map((debt, idx) => {
+                        const fromUser = tripUsers.find(u => u.id === debt.from);
+                        const toUser = tripUsers.find(u => u.id === debt.to);
+                        return (
+                          <div key={idx} className="p-2 bg-blue-50 rounded border border-blue-100 text-sm">
+                            <span className="font-bold">{fromUser?.name}</span> → <span className="font-bold">{toUser?.name}</span>: <span className="font-bold text-blue-700">{debt.amount.toFixed(2)} {activeTrip.currency || "RUB"}</span>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-green-200 font-bold text-lg text-green-700 bg-green-50 p-3 rounded-lg">
+                    {translate("total_spent")}: {getTotalExpenses().toFixed(2)} {activeTrip.currency || "RUB"}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
 
 
           <Dialog open={inviteDialogOpen} onOpenChange={(open) => {
@@ -2294,34 +2323,93 @@ export default function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-semibold mb-2 block">
-                    {translate("split_between")}
-                  </label>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                  <label className="text-sm font-semibold mb-2 block">{translate("who_pays")}</label>
+                  <select
+                    value={newExpense.paidBy || user?.id}
+                    onChange={(e) => setNewExpense({ ...newExpense, paidBy: e.target.value })}
+                    className="w-full h-12 px-3 border rounded-md"
+                  >
+                    {tripUsers.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold mb-2 block">{translate("split_between")}</label>
+                  <div className="flex gap-4 mb-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="splitType"
+                        checked={newExpense.splitType === 'equal'}
+                        onChange={() => setNewExpense({ ...newExpense, splitType: 'equal' })}
+                      />
+                      <span>{translate("split_equal")}</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="splitType"
+                        checked={newExpense.splitType === 'shares'}
+                        onChange={() => setNewExpense({ ...newExpense, splitType: 'shares' })}
+                      />
+                      <span>{translate("split_shares")}</span>
+                    </label>
+                  </div>
+
+                  <div className="space-y-3 max-h-60 overflow-y-auto p-1">
                     {tripUsers.map((u) => (
-                      <label key={u.id} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={newExpense.sharedBy.includes(u.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
+                      <div key={u.id} className="flex items-center justify-between gap-4 p-2 border rounded-lg hover:bg-gray-50">
+                        <label className="flex items-center gap-2 cursor-pointer flex-1">
+                          <input
+                            type="checkbox"
+                            checked={newExpense.sharedBy.includes(u.id)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              let newShared = checked 
+                                ? [...newExpense.sharedBy, u.id]
+                                : newExpense.sharedBy.filter(id => id !== u.id);
+                              
+                              let newSplit = { ...newExpense.split };
+                              if (!checked) delete newSplit[u.id];
+
                               setNewExpense({
                                 ...newExpense,
-                                sharedBy: [...newExpense.sharedBy, u.id],
+                                sharedBy: newShared,
+                                split: newSplit
                               });
-                            } else {
-                              setNewExpense({
-                                ...newExpense,
-                                sharedBy: newExpense.sharedBy.filter(id => id !== u.id),
-                              });
-                            }
-                          }}
-                          className="w-4 h-4"
-                        />
-                        <span>{u.name}</span>
-                      </label>
+                            }}
+                            className="w-4 h-4"
+                          />
+                          <span>{u.name}</span>
+                        </label>
+                        {newExpense.splitType === 'shares' && newExpense.sharedBy.includes(u.id) && (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              placeholder="0.00"
+                              value={newExpense.split[u.id] || ""}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                setNewExpense({
+                                  ...newExpense,
+                                  split: { ...newExpense.split, [u.id]: val }
+                                });
+                              }}
+                              className="w-24 h-8 text-right"
+                            />
+                            <span className="text-xs text-gray-400">{newExpense.currency || "RUB"}</span>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
+                  {newExpense.splitType === 'shares' && (
+                    <div className="mt-2 text-xs text-right text-gray-500">
+                      Total: {Object.values(newExpense.split).reduce((a, b) => a + b, 0).toFixed(2)} / {newExpense.amount}
+                    </div>
+                  )}
                 </div>
               </div>
               <DialogFooter>
@@ -3571,32 +3659,86 @@ export default function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-semibold mb-2 block">
-                    {translate("participants")} ({translate("split_between")}):
-                  </label>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                  <label className="text-sm font-semibold mb-2 block">{translate("who_pays")}</label>
+                  <select
+                    value={newExpense.paidBy || editingItem?.paidBy}
+                    onChange={(e) => setNewExpense({ ...newExpense, paidBy: e.target.value })}
+                    className="w-full h-12 px-3 border rounded-md"
+                  >
+                    {tripUsers.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold mb-2 block">{translate("split_between")}</label>
+                  <div className="flex gap-4 mb-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="editSplitType"
+                        checked={newExpense.splitType === 'equal'}
+                        onChange={() => setNewExpense({ ...newExpense, splitType: 'equal' })}
+                      />
+                      <span>{translate("split_equal")}</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="editSplitType"
+                        checked={newExpense.splitType === 'shares'}
+                        onChange={() => setNewExpense({ ...newExpense, splitType: 'shares' })}
+                      />
+                      <span>{translate("split_shares")}</span>
+                    </label>
+                  </div>
+
+                  <div className="space-y-3 max-h-60 overflow-y-auto p-1">
                     {tripUsers.map((u) => (
-                      <label key={u.id} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={newExpense.sharedBy.includes(u.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
+                      <div key={u.id} className="flex items-center justify-between gap-4 p-2 border rounded-lg hover:bg-gray-50">
+                        <label className="flex items-center gap-2 cursor-pointer flex-1">
+                          <input
+                            type="checkbox"
+                            checked={newExpense.sharedBy.includes(u.id)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              let newShared = checked 
+                                ? [...newExpense.sharedBy, u.id]
+                                : newExpense.sharedBy.filter(id => id !== u.id);
+                              
+                              let newSplit = { ...newExpense.split };
+                              if (!checked) delete newSplit[u.id];
+
                               setNewExpense({
                                 ...newExpense,
-                                sharedBy: [...newExpense.sharedBy, u.id],
+                                sharedBy: newShared,
+                                split: newSplit
                               });
-                            } else {
-                              setNewExpense({
-                                ...newExpense,
-                                sharedBy: newExpense.sharedBy.filter(id => id !== u.id),
-                              });
-                            }
-                          }}
-                          className="w-4 h-4"
-                        />
-                        <span>{u.name}</span>
-                      </label>
+                            }}
+                            className="w-4 h-4"
+                          />
+                          <span>{u.name}</span>
+                        </label>
+                        {newExpense.splitType === 'shares' && newExpense.sharedBy.includes(u.id) && (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              placeholder="0.00"
+                              value={newExpense.split[u.id] || ""}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                setNewExpense({
+                                  ...newExpense,
+                                  split: { ...newExpense.split, [u.id]: val }
+                                });
+                              }}
+                              className="w-24 h-8 text-right"
+                            />
+                            <span className="text-xs text-gray-400">{newExpense.currency || "RUB"}</span>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -3605,7 +3747,7 @@ export default function App() {
                 <Button variant="outline" onClick={() => {
                   setEditExpenseDialogOpen(false);
                   setEditingItem(null);
-                  setNewExpense({ description: "", amount: "", category: "", sharedBy: [], currency: activeTrip?.currency || "RUB" });
+                  setNewExpense({ description: "", amount: "", category: "", sharedBy: [], currency: activeTrip?.currency || "RUB", paidBy: "", splitType: 'equal', split: {} });
                 }}>
                   {translate("cancel")}
                 </Button>
