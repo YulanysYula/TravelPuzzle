@@ -515,25 +515,6 @@ export default function App() {
     setFormErrors({});
   };
 
-  // Update status for any card
-  const updateCardStatus = (type: "place" | "activity" | "accommodation" | "transport", id: string, status: "new" | "possible" | "rejected" | "approved") => {
-    if (!activeTrip) return;
-    let updated: Trip = { ...activeTrip, updatedAt: new Date() };
-    
-    if (type === "place") {
-      updated.places = (activeTrip.places || []).map(p => p.id === id ? { ...p, status } : p);
-    } else if (type === "activity") {
-      updated.activities = ((activeTrip.activities as unknown as Activity[]) || []).map(a => a.id === id ? { ...a, status, approved: status === "approved" } : a);
-    } else if (type === "accommodation") {
-      updated.accommodations = (activeTrip.accommodations || []).map(acc => acc.id === id ? { ...acc, status } : acc);
-    } else if (type === "transport") {
-      updated.transports = (activeTrip.transports || []).map(tr => tr.id === id ? { ...tr, status } : tr);
-    }
-    
-    const withProgress = { ...updated, progress: calculateProgress(updated) };
-    setActiveTrip(withProgress);
-    saveTrip(withProgress);
-  };
 
   // Handle trip cover image upload
   const handleTripCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2144,9 +2125,9 @@ export default function App() {
                             <div className="text-sm text-gray-500 mt-1">
                               {translate("passengers")}: {tr.passengers}
                             </div>
-                            {tr.price > 0 && (
+                            {(tr.price || 0) > 0 && (
                               <div className="text-sm font-semibold text-green-600 mt-2">
-                                {translate("price")}: {tr.price.toFixed(2)} {tr.currency || "EUR"}
+                                {translate("price")}: {(tr.price || 0).toFixed(2)} {tr.currency || "EUR"}
                               </div>
                             )}
                             {tr.description && (
