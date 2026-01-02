@@ -296,6 +296,17 @@ export const getTrips = async (): Promise<Trip[]> => {
   return getTripsFromCache();
 };
 
+export const saveTripToCache = (trip: Trip): void => {
+  const trips = getTripsFromCache();
+  const existingIndex = trips.findIndex(t => t.id === trip.id);
+  if (existingIndex >= 0) {
+    trips[existingIndex] = trip;
+  } else {
+    trips.push(trip);
+  }
+  localStorage.setItem(STORAGE_KEYS.TRIPS, JSON.stringify(trips));
+};
+
 export const saveTrip = async (trip: Trip): Promise<void> => {
   const updatedTrip = {
     ...trip,
@@ -311,14 +322,7 @@ export const saveTrip = async (trip: Trip): Promise<void> => {
   }
   
   // Also save to localStorage as cache
-  const trips = getTripsFromCache();
-  const existingIndex = trips.findIndex(t => t.id === trip.id);
-  if (existingIndex >= 0) {
-    trips[existingIndex] = updatedTrip;
-  } else {
-    trips.push(updatedTrip);
-  }
-  localStorage.setItem(STORAGE_KEYS.TRIPS, JSON.stringify(trips));
+  saveTripToCache(updatedTrip);
 };
 
 export const deleteTrip = async (tripId: number): Promise<void> => {
