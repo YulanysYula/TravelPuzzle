@@ -19,6 +19,7 @@ import {
   getUserById,
   logout as logoutUser,
   saveTrip,
+  saveTripToCache,
   setCurrentUser,
   type Accommodation,
   type Activity,
@@ -40,7 +41,7 @@ export default function App() {
   const [messageInput, setMessageInput] = useState("");
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [autoSaveStatus, setAutoSaveStatus] = useState<"saved" | "saving" | null>(null);
+
   const [tripUsers, setTripUsers] = useState<User[]>([]);
   // Language state - loaded before user check
   const [language, setLanguage] = useState<Language>(() => {
@@ -81,6 +82,7 @@ export default function App() {
   const activityFileInputRef = useRef<HTMLInputElement>(null);
   const accommodationFileInputRef = useRef<HTMLInputElement>(null);
   const transportFileInputRef = useRef<HTMLInputElement>(null);
+  const tripCoverInputRef = useRef<HTMLInputElement>(null);
 
   // Load user and trips on mount
   useEffect(() => {
@@ -95,24 +97,7 @@ export default function App() {
     init();
   }, []);
 
-  // Auto-save trip changes
-  useEffect(() => {
-    if (!activeTrip) return;
-    
-    const timer = setTimeout(async () => {
-      if (activeTrip) {
-        setAutoSaveStatus("saving");
-        await saveTrip(activeTrip);
-        setTrips(prev => prev.map(t => t.id === activeTrip.id ? activeTrip : t));
-        setTimeout(() => {
-          setAutoSaveStatus("saved");
-          setTimeout(() => setAutoSaveStatus(null), 2000);
-        }, 500);
-      }
-    }, 1000);
 
-    return () => clearTimeout(timer);
-  }, [activeTrip]);
 
   // Sync trips from storage and Supabase periodically (for collaboration)
   useEffect(() => {
@@ -132,11 +117,11 @@ export default function App() {
               // Use the most recent version
               if (new Date(st.updatedAt) > new Date(mergedTrips[existingIndex].updatedAt)) {
                 mergedTrips[existingIndex] = st;
-                saveTrip(st); // Update local storage (fire and forget)
+                saveTripToCache(st); // Update local storage (fire and forget)
               }
             } else {
               mergedTrips.push(st);
-              saveTrip(st); // Update local storage (fire and forget)
+              saveTripToCache(st); // Update local storage (fire and forget)
             }
           });
           setTrips(mergedTrips);
@@ -166,7 +151,7 @@ export default function App() {
           }
         }
       }
-    }, 3000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [user, activeTrip]);
@@ -295,15 +280,19 @@ export default function App() {
   // Logic for trip progress
   const calculateProgress = (trip: Trip): number => {
     let progress = 0;
-    const hasApprovedPlace = (trip.places || []).some(p => p.status === "approved");
-    const hasApprovedActivity = (trip.activities || []).some(a => a.approved || a.status === "approved");
-    const hasApprovedAccommodation = (trip.accommodations || []).some(acc => acc.status === "approved");
-    const hasApprovedTransport = (trip.transports || []).some(tr => tr.status === "approved");
+    
+    // Check if any items exist in each category (20% each)
+    const hasPlace = (trip.places || []).length > 0;
+    const hasActivity = (trip.activities || []).length > 0;
+    const hasAccommodation = (trip.accommodations || []).length > 0;
+    const hasTransport = (trip.transports || []).length > 0;
+    const hasExpense = (trip.expenses || []).length > 0;
 
-    if (hasApprovedPlace) progress += 25;
-    if (hasApprovedActivity) progress += 25;
-    if (hasApprovedAccommodation) progress += 25;
-    if (hasApprovedTransport) progress += 25;
+    if (hasPlace) progress += 20;
+    if (hasActivity) progress += 20;
+    if (hasAccommodation) progress += 20;
+    if (hasTransport) progress += 20;
+    if (hasExpense) progress += 20;
 
     return progress;
   };
@@ -804,8 +793,9 @@ export default function App() {
       updatedAt: new Date(),
     };
     
-    setActiveTrip(updated);
-    saveTrip(updated);
+    const withProgress = { ...updated, progress: calculateProgress(updated) };
+    setActiveTrip(withProgress);
+    saveTrip(withProgress);
     setNewExpense({ description: "", amount: "", category: "", sharedBy: [], currency: activeTrip.currency || "RUB" });
     setExpenseDialogOpen(false);
   };
@@ -845,8 +835,9 @@ export default function App() {
       updatedAt: new Date(),
     };
     
-    setActiveTrip(updated);
-    saveTrip(updated);
+    const withProgress = { ...updated, progress: calculateProgress(updated) };
+    setActiveTrip(withProgress);
+    saveTrip(withProgress);
     setNewPlace({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new", currency: "EUR" });
     setPlaceDialogOpen(false);
   };
@@ -901,8 +892,9 @@ export default function App() {
       updatedAt: new Date(),
     };
     
-    setActiveTrip(updated);
-    saveTrip(updated);
+    const withProgress = { ...updated, progress: calculateProgress(updated) };
+    setActiveTrip(withProgress);
+    saveTrip(withProgress);
     setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new", currency: "EUR" });
     setActivityDialogOpen(false);
   };
@@ -950,8 +942,9 @@ export default function App() {
       updatedAt: new Date(),
     };
     
-    setActiveTrip(updated);
-    saveTrip(updated);
+    const withProgress = { ...updated, progress: calculateProgress(updated) };
+    setActiveTrip(withProgress);
+    saveTrip(withProgress);
     setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new", currency: "EUR" });
     setAccommodationDialogOpen(false);
   };
@@ -1059,14 +1052,7 @@ export default function App() {
                 }
               </h1>
             </div>
-            <div className="flex items-center gap-2">
-              {autoSaveStatus === "saving" && (
-                <span className="text-sm text-gray-500">💾 Сохранение...</span>
-              )}
-              {autoSaveStatus === "saved" && (
-                <span className="text-sm text-green-500">✓ Сохранено</span>
-              )}
-            </div>
+
           </motion.div>
 
           {/* Trip Header */}
@@ -2560,6 +2546,32 @@ export default function App() {
                     }
                   }}
                 />
+                
+                  <div className="flex flex-col gap-2">
+                    <div className="text-sm font-medium text-gray-700">{translate("image")} (Cover)</div>
+                    <input
+                      type="file"
+                      id="trip-cover-upload"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleTripCoverImageUpload}
+                    />
+                    <label 
+                      htmlFor="trip-cover-upload"
+                      className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full cursor-pointer"
+                    >
+                      {activeTrip?.coverImage ? translate("image_uploaded") : translate("upload_image")}
+                    </label>
+                  {activeTrip?.coverImage && (
+                    <div className="mt-2 relative h-32 w-full rounded-md overflow-hidden">
+                      <img
+                        src={activeTrip.coverImage}
+                        alt="Current Cover"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => {
