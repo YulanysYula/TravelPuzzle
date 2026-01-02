@@ -81,7 +81,7 @@ export default function App() {
   const [password, setPassword] = useState("");
   // New features state
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
-  const [newExpense, setNewExpense] = useState({ description: "", amount: "", category: "", sharedBy: [] as string[], currency: "RUB", paidBy: "", splitType: 'equal' as 'equal' | 'shares', split: {} as Record<string, number> });
+  const [newExpense, setNewExpense] = useState({ description: "", amount: "", category: translate("category_other"), sharedBy: [] as string[], currency: "RUB", paidBy: "", splitType: 'equal' as 'equal' | 'shares', split: {} as Record<string, number> });
   // New dialogs
   const [placeDialogOpen, setPlaceDialogOpen] = useState(false);
   const [activityDialogOpen, setActivityDialogOpen] = useState(false);
@@ -319,11 +319,11 @@ export default function App() {
   const calculateProgress = (trip: Trip): number => {
     let progress = 0;
     
-    // Check if any items exist in each category (20% each)
-    const hasPlace = (trip.places || []).length > 0;
-    const hasActivity = (trip.activities || []).length > 0;
-    const hasAccommodation = (trip.accommodations || []).length > 0;
-    const hasTransport = (trip.transports || []).length > 0;
+    // Check if any items exist and are approved in each category (20% each)
+    const hasPlace = (trip.places || []).some(p => p.status === "approved");
+    const hasActivity = (trip.activities || []).some(a => a.status === "approved" || a.approved);
+    const hasAccommodation = (trip.accommodations || []).some(acc => acc.status === "approved");
+    const hasTransport = (trip.transports || []).some(t => t.status === "approved");
     const hasExpense = (trip.expenses || []).length > 0;
 
     if (hasPlace) progress += 20;
@@ -525,7 +525,7 @@ export default function App() {
     saveTrip(updated);
     setEditExpenseDialogOpen(false);
     setEditingItem(null);
-    setNewExpense({ description: "", amount: "", category: "", sharedBy: [], currency: activeTrip.currency || "RUB", paidBy: "", splitType: 'equal', split: {} });
+    setNewExpense({ description: "", amount: "", category: translate("category_other"), sharedBy: [], currency: activeTrip.currency || "RUB", paidBy: "", splitType: 'equal', split: {} });
     setFormErrors({});
   };
 
@@ -661,7 +661,7 @@ export default function App() {
       id: Date.now().toString(),
       description: newExpense.description,
       amount,
-      category: newExpense.category || (language === "ru" ? "Другое" : "Other"),
+      category: newExpense.category || translate("category_other"),
       paidBy,
       sharedBy,
       splitType,
@@ -679,7 +679,7 @@ export default function App() {
     const withProgress = { ...updated, progress: calculateProgress(updated) };
     setActiveTrip(withProgress);
     saveTrip(withProgress);
-    setNewExpense({ description: "", amount: "", category: "", sharedBy: [], currency: activeTrip.currency || "RUB", paidBy: "", splitType: 'equal', split: {} });
+    setNewExpense({ description: "", amount: "", category: translate("category_other"), sharedBy: [], currency: activeTrip.currency || "RUB", paidBy: "", splitType: 'equal', split: {} });
     setFormErrors({});
     setExpenseDialogOpen(false);
   };
@@ -2312,14 +2312,13 @@ export default function App() {
                     onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
                     className="w-full h-12 px-3 border rounded-md"
                   >
-                    <option value="">{translate("category_other")}</option>
+                    <option value={translate("category_other")}>{translate("category_other")}</option>
                     <option value={translate("category_transport")}>{translate("category_transport")}</option>
                     <option value={translate("category_accommodation")}>{translate("category_accommodation")}</option>
                     <option value={translate("category_food")}>{translate("category_food")}</option>
                     <option value={translate("category_shopping")}>{translate("category_shopping")}</option>
                     <option value={translate("category_entertainment")}>{translate("category_entertainment")}</option>
                     <option value={translate("category_cafe")}>{translate("category_cafe")}</option>
-                    <option value={translate("category_other")}>{translate("category_other")}</option>
                   </select>
                 </div>
                 <div>
@@ -3648,14 +3647,13 @@ export default function App() {
                     onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
                     className="w-full h-12 px-3 border rounded-md"
                   >
-                    <option value="">{translate("category_other")}</option>
+                    <option value={translate("category_other")}>{translate("category_other")}</option>
                     <option value={translate("category_transport")}>{translate("category_transport")}</option>
                     <option value={translate("category_accommodation")}>{translate("category_accommodation")}</option>
                     <option value={translate("category_food")}>{translate("category_food")}</option>
                     <option value={translate("category_shopping")}>{translate("category_shopping")}</option>
                     <option value={translate("category_entertainment")}>{translate("category_entertainment")}</option>
                     <option value={translate("category_cafe")}>{translate("category_cafe")}</option>
-                    <option value={translate("category_other")}>{translate("category_other")}</option>
                   </select>
                 </div>
                 <div>
@@ -3747,7 +3745,7 @@ export default function App() {
                 <Button variant="outline" onClick={() => {
                   setEditExpenseDialogOpen(false);
                   setEditingItem(null);
-                  setNewExpense({ description: "", amount: "", category: "", sharedBy: [], currency: activeTrip?.currency || "RUB", paidBy: "", splitType: 'equal', split: {} });
+                  setNewExpense({ description: "", amount: "", category: translate("category_other"), sharedBy: [], currency: activeTrip?.currency || "RUB", paidBy: "", splitType: 'equal', split: {} });
                 }}>
                   {translate("cancel")}
                 </Button>
