@@ -86,6 +86,8 @@ export interface Accommodation {
   price: number;
   status?: 'new' | 'possible' | 'rejected' | 'approved'; // Статус жилья
   currency?: string;
+  guests: number; // Количество гостей
+  votes: string[]; // User IDs who voted
   createdAt: Date;
 }
 
