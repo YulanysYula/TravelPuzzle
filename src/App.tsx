@@ -814,15 +814,7 @@ export default function App() {
                         setView("plan");
                       }}
                       className="h-full shadow-lg hover:shadow-xl transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm relative overflow-hidden"
-                      style={trip.coverImage ? {
-                        backgroundImage: `url(${trip.coverImage})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                      } : {}}
                     >
-                      {trip.coverImage && (
-                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-                      )}
                       <CardContent className="p-6 space-y-4 relative z-10">
                         <div className="flex items-start justify-between">
                           <h2 className="text-xl font-bold text-gray-800">{trip.name}</h2>
