@@ -405,15 +405,20 @@ export interface Debt {
   amount: number;
 }
 
-export const calculateBalances = (trip: Trip): Record<string, number> => {
-  const balances: Record<string, number> = {};
+export const calculateBalances = (trip: Trip): Record<string, Record<string, number>> => {
+  const currencyBalances: Record<string, Record<string, number>> = {};
   
-  // Initialize balances
-  trip.users.forEach(userId => {
-    balances[userId] = 0;
-  });
-
   (trip.expenses || []).forEach(expense => {
+    const currency = expense.currency || trip.currency || 'RUB';
+    if (!currencyBalances[currency]) {
+      currencyBalances[currency] = {};
+      trip.users.forEach(userId => {
+        currencyBalances[currency][userId] = 0;
+      });
+    }
+
+    const balances = currencyBalances[currency];
+
     // Payer gets back what they paid
     balances[expense.paidBy] = (balances[expense.paidBy] || 0) + expense.amount;
 
@@ -432,7 +437,7 @@ export const calculateBalances = (trip: Trip): Record<string, number> => {
     }
   });
 
-  return balances;
+  return currencyBalances;
 };
 
 export const settleDebts = (balances: Record<string, number>): Debt[] => {
@@ -455,7 +460,7 @@ export const settleDebts = (balances: Record<string, number>): Debt[] => {
     const creditor = creditors[cIdx];
     
     const amount = Math.min(debtor.balance, creditor.balance);
-    if (amount > 0.01) {
+    if (amount > 0.001) {
       debts.push({
         from: debtor.userId,
         to: creditor.userId,
@@ -466,8 +471,8 @@ export const settleDebts = (balances: Record<string, number>): Debt[] => {
     debtor.balance -= amount;
     creditor.balance -= amount;
 
-    if (debtor.balance < 0.01) dIdx++;
-    if (creditor.balance < 0.01) cIdx++;
+    if (debtor.balance < 0.001) dIdx++;
+    if (creditor.balance < 0.001) cIdx++;
   }
 
   return debts;
