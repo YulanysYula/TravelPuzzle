@@ -685,8 +685,13 @@ export default function App() {
   };
 
   const getTotalExpenses = () => {
-    if (!activeTrip) return 0;
-    return (activeTrip.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
+    if (!activeTrip) return {};
+    const totals: Record<string, number> = {};
+    (activeTrip.expenses || []).forEach(exp => {
+      const currency = exp.currency || activeTrip.currency || 'RUB';
+      totals[currency] = (totals[currency] || 0) + exp.amount;
+    });
+    return totals;
   };
 
 
@@ -2153,53 +2158,112 @@ export default function App() {
                           );
                         })}
                           <div className="pt-2 border-t border-green-200 font-semibold text-green-700">
-                           {translate("total_category")}: {expenses.reduce((sum, e) => sum + e.amount, 0).toFixed(2)} {activeTrip.currency || "RUB"}
+                           {translate("total_category")}:
+                           <div className="flex flex-wrap gap-2 text-xs mt-1">
+                             {Object.entries(expenses.reduce((acc, e) => {
+                               const curr = e.currency || activeTrip.currency || 'RUB';
+                               acc[curr] = (acc[curr] || 0) + e.amount;
+                               return acc;
+                             }, {} as Record<string, number>)).map(([curr, total]) => (
+                               <span key={curr} className="bg-green-50 px-2 py-0.5 rounded border border-green-200">
+                                 {total.toFixed(2)} {curr}
+                               </span>
+                             ))}
+                           </div>
                           </div>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* New Debts and Settlement Logic */}
                 <div className="pt-4 border-t border-green-200">
-                  <h3 className="font-semibold mb-3 text-gray-700">{translate("balance_summary")}:</h3>
-                  <div className="space-y-2">
-                    {(() => {
-                      const balances = calculateBalances(activeTrip);
-                      return tripUsers.map((u) => {
-                        const balance = balances[u.id] || 0;
-                        return (
-                          <div key={u.id} className="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-                            <span className="font-medium text-gray-700">{u.name}</span>
-                            <span className={`font-semibold ${balance < -0.01 ? "text-red-600" : balance > 0.01 ? "text-green-600" : "text-gray-600"}`}>
-                              {balance < -0.01 ? `${translate("owes")}: ${Math.abs(balance).toFixed(2)} ${activeTrip.currency || "RUB"}` : balance > 0.01 ? `${translate("owed")}: ${balance.toFixed(2)} ${activeTrip.currency || "RUB"}` : "0.00"}
-                            </span>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
+                  {(() => {
+                    const currencyBalances = calculateBalances(activeTrip);
+                    const currencies = Object.keys(currencyBalances);
+                    
+                    if (currencies.length === 0) return null;
+                    
+                    return (
+                      <div className="space-y-8">
+                        {currencies.map(curr => {
+                          const balances = currencyBalances[curr];
+                          const debts = settleDebts(balances);
+                          
+                          return (
+                            <div key={curr} className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold">
+                                  {curr}
+                                </span>
+                                <div className="h-px bg-green-200 flex-1"></div>
+                              </div>
+                              
+                              <div className="space-y-3">
+                                <h3 className="font-semibold text-gray-700 text-sm flex items-center gap-2">
+                                  📊 {translate("balance_summary")} ({curr})
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  {tripUsers.map((u) => {
+                                    const balance = balances[u.id] || 0;
+                                    return (
+                                      <div key={u.id} className="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-200 shadow-sm transition-all hover:border-green-200">
+                                        <span className="font-medium text-gray-700">{u.name}</span>
+                                        <span className={`font-bold ${balance < -0.01 ? "text-red-600" : balance > 0.01 ? "text-green-600" : "text-gray-600"}`}>
+                                          {balance < -0.01 ? `${translate("owes")}: ${Math.abs(balance).toFixed(2)} ${curr}` : balance > 0.01 ? `${translate("owed")}: ${balance.toFixed(2)} ${curr}` : `0.00 ${curr}`}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
 
-                  <h3 className="font-semibold mt-6 mb-3 text-gray-700">{translate("who_summarize")}:</h3>
-                  <div className="space-y-2">
-                    {(() => {
-                      const balances = calculateBalances(activeTrip);
-                      const debts = settleDebts(balances);
-                      if (debts.length === 0) return <p className="text-sm text-gray-500 italic">{translate("no_debts")}</p>;
-                      return debts.map((debt, idx) => {
-                        const fromUser = tripUsers.find(u => u.id === debt.from);
-                        const toUser = tripUsers.find(u => u.id === debt.to);
-                        return (
-                          <div key={idx} className="p-2 bg-blue-50 rounded border border-blue-100 text-sm">
-                            <span className="font-bold">{fromUser?.name}</span> → <span className="font-bold">{toUser?.name}</span>: <span className="font-bold text-blue-700">{debt.amount.toFixed(2)} {activeTrip.currency || "RUB"}</span>
+                              <div className="space-y-3">
+                                <h3 className="font-semibold text-gray-700 text-sm flex items-center gap-2">
+                                  💸 {translate("who_summarize")} ({curr})
+                                </h3>
+                                <div className="space-y-2">
+                                  {debts.length === 0 ? (
+                                    <p className="text-sm text-gray-500 italic px-2">{translate("no_debts")}</p>
+                                  ) : (
+                                    debts.map((debt, idx) => {
+                                      const fromUser = tripUsers.find(u => u.id === debt.from);
+                                      const toUser = tripUsers.find(u => u.id === debt.to);
+                                      return (
+                                        <div key={idx} className="p-3 bg-blue-50/50 rounded-lg border border-blue-100 text-gray-800 flex items-center justify-between shadow-sm">
+                                          <div>
+                                            <span className="font-bold text-gray-900">{fromUser?.name}</span>
+                                            <span className="mx-2 text-gray-400">→</span>
+                                            <span className="font-bold text-gray-900">{toUser?.name}</span>
+                                          </div>
+                                          <span className="font-black text-blue-700 bg-white px-2 py-1 rounded-md border border-blue-200">
+                                            {debt.amount.toFixed(2)} {curr}
+                                          </span>
+                                        </div>
+                                      );
+                                    })
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        
+                        <div className="mt-8 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 shadow-inner">
+                          <h3 className="font-bold text-green-800 mb-3 flex items-center gap-2">
+                            📝 {translate("total_spent")}
+                          </h3>
+                          <div className="flex flex-wrap gap-3">
+                            {Object.entries(getTotalExpenses()).map(([curr, total]) => (
+                               <div key={curr} className="bg-white px-4 py-2 rounded-lg border-2 border-green-200 shadow-sm flex items-center gap-2">
+                                 <span className="font-black text-green-700 text-lg">{total.toFixed(2)}</span>
+                                 <span className="text-green-600 font-bold">{curr}</span>
+                               </div>
+                            ))}
                           </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-green-200 font-bold text-lg text-green-700 bg-green-50 p-3 rounded-lg">
-                    {translate("total_spent")}: {getTotalExpenses().toFixed(2)} {activeTrip.currency || "RUB"}
-                  </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </CardContent>
             </Card>
@@ -3888,7 +3952,8 @@ export default function App() {
       const copySummary = () => {
         let text = `${translate("trip_plan")}: ${activeTrip.name}\n\n`;
         text += `${translate("participants")}: ${tripUsers.map(u => u.name).join(", ")}\n`;
-        text += `${translate("total_spent")}: ${getTotalExpenses().toFixed(2)} ${activeTrip.currency || "RUB"}\n\n`;
+        const totals = getTotalExpenses();
+        text += `${translate("total_spent")}: ${Object.entries(totals).map(([curr, total]) => `${total.toFixed(2)} ${curr}`).join(", ")}\n\n`;
         
         if (approvedPlaces.length > 0) {
           text += `${translate("places").toUpperCase()}:\n`;
@@ -4014,8 +4079,13 @@ export default function App() {
                         </span>
                       ))}
                     </div>
-                    <div className="mt-2 text-sm text-gray-600">
-                      {translate("total_spent")}: <span className="font-bold">{getTotalExpenses().toFixed(2)} {activeTrip.currency || "RUB"}</span>
+                    <div className="mt-2 text-sm text-gray-600 flex flex-wrap gap-3 items-center">
+                      <span className="font-semibold">{translate("total_spent")}:</span>
+                      {Object.entries(getTotalExpenses()).map(([curr, total]) => (
+                        <span key={curr} className="bg-green-50 px-2 py-0.5 rounded border border-green-200 font-bold text-green-700">
+                           {total.toFixed(2)} {curr}
+                        </span>
+                      ))}
                     </div>
                   </div>
 

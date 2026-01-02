@@ -158,6 +158,7 @@ export const translations: Record<string, Record<Language, string>> = {
   "trip_dates": { ru: "Даты поездки", en: "Trip Dates" },
   "daily_plan": { ru: "План по дням", en: "Daily Plan" },
   "individual_plans": { ru: "Индивидуальные планы", en: "Individual Plans" },
+  "trip_summary": { ru: "Саммари поездки", en: "Trip Summary" },
   "activities_by_participant": { ru: "Активности по участникам", en: "Activities by Participant" },
 
   "no_activities_day": { ru: "Нет запланированных активностей на этот день", en: "No activities planned for this day" },
