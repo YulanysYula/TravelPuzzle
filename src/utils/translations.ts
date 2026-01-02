@@ -20,7 +20,7 @@ export const translations: Record<string, Record<Language, string>> = {
   "trip_planner": { ru: "Планировщик поездок", en: "Trip Planner" },
   "login_to_account": { ru: "Войдите в свой аккаунт", en: "Login to your account" },
   "create_new_account": { ru: "Создайте новый аккаунт", en: "Create a new account" },
-  "register": { ru: "Зарегистрироваться", en: "Register" },
+
   
   // Dashboard
   "my_trips": { ru: "Мои поездки", en: "My Trips" },
@@ -147,13 +147,58 @@ export const translations: Record<string, Record<Language, string>> = {
   "general_info": { ru: "Общая информация", en: "General Information" },
   "trip_dates": { ru: "Даты поездки", en: "Trip Dates" },
   "daily_plan": { ru: "План по дням", en: "Daily Plan" },
-  "day": { ru: "День", en: "Day" },
+
   "no_activities_day": { ru: "Нет запланированных активностей на этот день", en: "No activities planned for this day" },
   
   // Language
   "language": { ru: "Язык", en: "Language" },
   "russian": { ru: "Русский", en: "Russian" },
   "english": { ru: "Английский", en: "English" },
+
+  // New Additions
+  "cannot_delete_creator": { ru: "Нельзя удалить создателя поездки", en: "Cannot delete trip creator" },
+  "invite_participant_title": { ru: "Пригласить участника", en: "Invite Participant" },
+  "invite_participant_desc": { ru: "Введите email пользователя, которого хотите пригласить в поездку", en: "Enter the email of the user you want to invite to the trip" },
+  "participant_email": { ru: "Email участника", en: "Participant Email" },
+  "add_expense_desc": { ru: "Внесите информацию о расходе и выберите, кто его оплатил и с кем делится", en: "Enter expense details and select who paid and who shares it" },
+  "trip_plan": { ru: "ПЛАН ПУТЕШЕСТВИЯ", en: "TRIP PLAN" },
+  "transport_plane": { ru: "Самолет", en: "Plane" },
+  "transport_train": { ru: "Поезд", en: "Train" },
+  "transport_bus": { ru: "Автобус", en: "Bus" },
+  "transport_car": { ru: "Автомобиль", en: "Car" },
+  "transport_ship": { ru: "Корабль", en: "Ship" },
+  "transport_other": { ru: "Другое", en: "Other" },
+  "image": { ru: "Изображение", en: "Image" },
+  "split_between": { ru: "разделить между", en: "split between" },
+  "total_category": { ru: "Итого по категории", en: "Total for category" },
+  "from_preposition": { ru: "из", en: "from" },
+  "in_preposition": { ru: "в", en: "in" },
+  "map": { ru: "Карта", en: "Map" },
+
+
+  "add_generic": { ru: "Добавить", en: "Add" },
+  "place_status": { ru: "Статус", en: "Status" },
+  "activity_desc_placeholder": { ru: "Добавьте активность с описанием, картинкой и ссылкой", en: "Add an activity with a description, image, and link" },
+  "trip_day": { ru: "День путешествия", en: "Trip Day" },
+  "time_placeholder": { ru: "Время (например: 10:00)", en: "Time (e.g. 10:00)" },
+  "transport_desc": { ru: "Добавьте информацию о транспорте", en: "Add transport information" },
+  "transport_type": { ru: "Тип транспорта", en: "Transport Type" },
+
+  "participants_count": { ru: "Участников", en: "Participants" },
+  "creator": { ru: "👑 Создатель", en: "👑 Creator" },
+  "general_progress": { ru: "Общий прогресс", en: "Total Progress" },
+  "confirm_delete_place": { ru: "Удалить это место?", en: "Delete this place?" },
+  "confirm_delete_activity": { ru: "Удалить эту активность?", en: "Delete this activity?" },
+  "confirm_delete_accommodation": { ru: "Удалить это жилье?", en: "Delete this accommodation?" },
+  "confirm_delete_transport": { ru: "Удалить этот транспорт?", en: "Delete this transport?" },
+  "user_not_invited_self": { ru: "Пользователь уже добавлен в поездку", en: "User is already in the trip" },
+  "user_invited_success": { ru: "добавлен в поездку!", en: "added to the trip!" },
+  "user_email_not_found": { ru: "Пользователь с таким email не найден", en: "User with this email not found" },
+  "delete_transport_confirm": { ru: "Удалить этот транспорт?", en: "Delete this transport?" },
+  "confirm_delete_participant": { ru: "Удалить этого участника из поездки?", en: "Remove this participant from the trip?" },
+  "day_param": { ru: "День {day} в {time}", en: "Day {day} at {time}" },
+  "field_required": { ru: "Это поле обязательно для заполнения", en: "This field is required" },
+  
 };
 
 export const t = (key: string, lang: Language): string => {

@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -70,12 +71,13 @@ export default function App() {
   const [editExpenseDialogOpen, setEditExpenseDialogOpen] = useState(false);
   const [editTripNameDialogOpen, setEditTripNameDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [newPlace, setNewPlace] = useState({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR" });
+  const [newPlace, setNewPlace] = useState({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR", price: "" });
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareLink, setShareLink] = useState("");
   const [newActivity, setNewActivity] = useState({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR" });
   const [newAccommodation, setNewAccommodation] = useState({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR" });
-  const [newTransport, setNewTransport] = useState({ type: "plane" as "plane" | "train" | "bus" | "car" | "ship" | "other", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", imageUrl: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR" });
+  const [newTransport, setNewTransport] = useState({ type: "plane" as "plane" | "train" | "bus" | "car" | "ship" | "other", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", imageUrl: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR", price: "" });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Refs for file inputs
   const placeFileInputRef = useRef<HTMLInputElement>(null);
@@ -174,35 +176,47 @@ export default function App() {
     setTrips(userTrips);
   };
 
-  const handleRegister = (email: string, name: string, password: string) => {
-    if (!email.trim() || !name.trim() || !password.trim()) {
-      alert("Заполните все поля");
+  const handleRegister = async (email: string, name: string, password: string) => {
+    const errors: Record<string, string> = {};
+    if (!email.trim()) errors.email = translate("field_required");
+    if (!name.trim()) errors.name = translate("field_required");
+    if (!password.trim()) errors.password = translate("field_required");
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
 
-    const checkAndRegister = async () => {
-      if (await getUserByEmail(email)) {
-        alert("Пользователь с таким email уже существует");
-        return;
-      }
+    if (await getUserByEmail(email)) {
+      setFormErrors({ email: translate("user_exists") });
+      return;
+    }
 
-      const newUser = await createUser(email, name, password);
-      setCurrentUser(newUser);
-      setUser(newUser);
-      setView("dashboard");
-      await loadTrips(newUser.id);
-      // Clear form fields
-      setEmail("");
-      setName("");
-      setPassword("");
-    };
-    checkAndRegister();
+    const newUser = await createUser(email, name, password);
+    setCurrentUser(newUser);
+    setUser(newUser);
+    setView("dashboard");
+    await loadTrips(newUser.id);
+    // Clear form fields and errors
+    setEmail("");
+    setName("");
+    setPassword("");
+    setFormErrors({});
   };
 
   const handleLogin = async (email: string, password: string) => {
+    const errors: Record<string, string> = {};
+    if (!email.trim()) errors.email = translate("field_required");
+    if (!password.trim()) errors.password = translate("field_required");
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
     const foundUser = await getUserByEmail(email);
     if (!foundUser || foundUser.password !== password) {
-      alert(translate("invalid_credentials"));
+      setFormErrors({ auth: translate("invalid_credentials") });
       return;
     }
 
@@ -231,9 +245,10 @@ export default function App() {
       await loadTrips(foundUser.id);
     }
     
-    // Clear form fields
+    // Clear form fields and errors
     setEmail("");
     setPassword("");
+    setFormErrors({});
   };
 
   const handleLogout = () => {
@@ -307,7 +322,13 @@ export default function App() {
 
   // Update trip name
   const updateTripName = () => {
-    if (!activeTrip || !editingItem?.name?.trim()) return;
+    if (!activeTrip || !editingItem) return;
+    
+    if (!editingItem.name?.trim()) {
+      setFormErrors({ name: translate("field_required") });
+      return;
+    }
+
     const updated: Trip = {
       ...activeTrip,
       name: editingItem.name.trim(),
@@ -317,15 +338,25 @@ export default function App() {
     saveTrip(updated);
     setEditTripNameDialogOpen(false);
     setEditingItem(null);
+    setFormErrors({});
   };
 
   // Update place
   const updatePlace = () => {
     if (!activeTrip || !editingItem) return;
+    
+    const errors: Record<string, string> = {};
+    if (!newPlace.name.trim()) errors.name = translate("field_required");
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
     const updated: Trip = {
       ...activeTrip,
       places: (activeTrip.places || []).map(p => 
-        p.id === editingItem.id ? { ...p, ...newPlace } : p
+        p.id === editingItem.id ? { ...p, ...newPlace, price: parseFloat(newPlace.price) || 0 } : p
       ),
       updatedAt: new Date(),
     };
@@ -334,12 +365,22 @@ export default function App() {
     saveTrip(withProgress);
     setEditPlaceDialogOpen(false);
     setEditingItem(null);
-    setNewPlace({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new", currency: "EUR" });
+    setNewPlace({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new", currency: "EUR", price: "" });
+    setFormErrors({});
   };
 
   // Update activity
   const updateActivity = () => {
     if (!activeTrip || !editingItem) return;
+
+    const errors: Record<string, string> = {};
+    if (!newActivity.name.trim()) errors.name = translate("field_required");
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
     const updated: Trip = {
       ...activeTrip,
       activities: ((activeTrip.activities as unknown as Activity[]) || []).map(a => 
@@ -353,11 +394,21 @@ export default function App() {
     setEditActivityDialogOpen(false);
     setEditingItem(null);
     setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new", currency: "EUR" });
+    setFormErrors({});
   };
 
   // Update accommodation
   const updateAccommodation = () => {
     if (!activeTrip || !editingItem) return;
+
+    const errors: Record<string, string> = {};
+    if (!newAccommodation.name.trim()) errors.name = translate("field_required");
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
     const updated: Trip = {
       ...activeTrip,
       accommodations: (activeTrip.accommodations || []).map(acc => 
@@ -371,15 +422,26 @@ export default function App() {
     setEditAccommodationDialogOpen(false);
     setEditingItem(null);
     setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new", currency: "EUR" });
+    setFormErrors({});
   };
 
   // Update transport
   const updateTransport = () => {
     if (!activeTrip || !editingItem) return;
+
+    const errors: Record<string, string> = {};
+    if (!newTransport.from.trim()) errors.from = translate("field_required");
+    if (!newTransport.to.trim()) errors.to = translate("field_required");
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
     const updated: Trip = {
       ...activeTrip,
       transports: (activeTrip.transports || []).map(tr => 
-        tr.id === editingItem.id ? { ...tr, ...newTransport } : tr
+        tr.id === editingItem.id ? { ...tr, ...newTransport, price: parseFloat(newTransport.price) || 0 } : tr
       ),
       updatedAt: new Date(),
     };
@@ -388,17 +450,31 @@ export default function App() {
     saveTrip(withProgress);
     setEditTransportDialogOpen(false);
     setEditingItem(null);
-    setNewTransport({ type: "plane", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", imageUrl: "", status: "new", currency: "EUR" });
+    setNewTransport({ type: "plane", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", imageUrl: "", status: "new", currency: "EUR", price: "" });
+    setFormErrors({});
   };
 
   // Update expense
   const updateExpense = () => {
     if (!activeTrip || !editingItem) return;
-    const amount = parseFloat(newExpense.amount);
-    if (isNaN(amount) || amount <= 0) {
-      alert(translate("enter_valid_amount"));
+
+    const errors: Record<string, string> = {};
+    if (!newExpense.description.trim()) errors.description = translate("field_required");
+    if (!newExpense.amount) {
+      errors.amount = translate("field_required");
+    } else {
+      const amount = parseFloat(newExpense.amount);
+      if (isNaN(amount) || amount <= 0) {
+        errors.amount = translate("enter_valid_amount");
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
+
+    const amount = parseFloat(newExpense.amount);
     const sharedBy = newExpense.sharedBy.length > 0 ? newExpense.sharedBy : activeTrip.users;
     const currency = newExpense.currency || activeTrip.currency || "RUB";
     
@@ -421,6 +497,7 @@ export default function App() {
     setEditExpenseDialogOpen(false);
     setEditingItem(null);
     setNewExpense({ description: "", amount: "", category: "", sharedBy: [], currency: activeTrip.currency || "RUB" });
+    setFormErrors({});
   };
 
   // Update status for any card
@@ -483,38 +560,44 @@ export default function App() {
   };
 
   const inviteUserToTrip = async () => {
-    if (!inviteEmail.trim() || !activeTrip || !user) return;
+    if (!inviteEmail.trim() || !activeTrip || !user) {
+      if (!inviteEmail.trim()) setFormErrors({ invite: translate("field_required") });
+      return;
+    }
 
     const invitedUser = await getUserByEmail(inviteEmail);
     if (!invitedUser) {
-      alert("Пользователь с таким email не найден");
+      setFormErrors({ invite: translate("user_email_not_found") });
       return;
     }
 
     if (activeTrip.users.includes(invitedUser.id)) {
-      alert("Пользователь уже добавлен в поездку");
-      setInviteEmail("");
-      setInviteDialogOpen(false);
+      setFormErrors({ invite: translate("user_already_added") });
       return;
     }
 
     const updated: Trip = {
       ...activeTrip,
-      users: [...activeTrip.users, invitedUser.id],
+      users: [...(activeTrip.users || []), invitedUser.id],
       updatedAt: new Date(),
     };
 
     setActiveTrip(updated);
     await saveTrip(updated);
     setInviteEmail("");
+    setFormErrors({});
     setInviteDialogOpen(false);
-    alert(`${invitedUser.name} ${translate("added_to_trip")}!`);
+    alert(`${invitedUser.name} ${translate("user_invited_success")}`);
   };
 
   const removeUserFromTrip = (userId: string) => {
     if (!activeTrip || !user) return;
     if (activeTrip.createdBy === userId && user.id !== userId) {
-      alert("Нельзя удалить создателя поездки");
+      alert(translate("cannot_delete_creator"));
+      return;
+    }
+
+    if (!window.confirm(translate("confirm_delete_participant"))) {
       return;
     }
 
@@ -548,55 +631,74 @@ export default function App() {
                   ✈️
                 </motion.div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Планировщик поездок
+                  {translate("trip_planner")}
                 </h1>
                 <p className="text-gray-500">
-                  {view === "login" ? "Войдите в свой аккаунт" : "Создайте новый аккаунт"}
+                  {view === "login" ? translate("login_to_account") : translate("create_new_account")}
                 </p>
               </div>
-              <div className="space-y-4">
-                <Input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="h-12 text-lg"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && view === "login") {
-                      handleLogin(email, password);
-                    }
-                  }}
-                  autoFocus
-                />
-                {view === "register" && (
-                  <Input
-                    placeholder="Имя"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="h-12 text-lg"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleRegister(email, name, password);
-                      }
-                    }}
-                  />
-                )}
-                <Input
-                  type="password"
-                  placeholder="Пароль"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-12 text-lg"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      if (view === "login") {
-                        handleLogin(email, password);
-                      } else {
-                        handleRegister(email, name, password);
-                      }
-                    }
-                  }}
-                />
+                  <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email" required>{translate("email") || "Email"}</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      error={!!formErrors.email}
+                      className="h-12 text-lg"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && view === "login") {
+                          handleLogin(email, password);
+                        }
+                      }}
+                      autoFocus
+                    />
+                    {formErrors.email && <p className="text-red-500 text-sm mt-1">{formErrors.email}</p>}
+                  </div>
+                  {view === "register" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="name" required>{translate("name")}</Label>
+                      <Input
+                        id="name"
+                        placeholder={translate("name")}
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        error={!!formErrors.name}
+                        className="h-12 text-lg"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleRegister(email, name, password);
+                          }
+                        }}
+                      />
+                      {formErrors.name && <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="password" required>{translate("password")}</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder={translate("password")}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      error={!!formErrors.password}
+                      className="h-12 text-lg"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          if (view === "login") {
+                            handleLogin(email, password);
+                          } else {
+                            handleRegister(email, name, password);
+                          }
+                        }
+                      }}
+                    />
+                    {formErrors.password && <p className="text-red-500 text-sm mt-1">{formErrors.password}</p>}
+                  </div>
+                  {formErrors.auth && <p className="text-red-500 text-sm text-center font-semibold">{formErrors.auth}</p>}
                 <Button
                   onClick={() => {
                     if (view === "login") {
@@ -607,7 +709,7 @@ export default function App() {
                   }}
                   className="w-full h-12 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 >
-                  {view === "login" ? "Войти" : "Зарегистрироваться"}
+                  {view === "login" ? translate("enter") : translate("register")}
                 </Button>
                 <Button
                   variant="ghost"
@@ -617,12 +719,13 @@ export default function App() {
                     setEmail("");
                     setName("");
                     setPassword("");
+                    setFormErrors({});
                   }}
                   className="w-full"
                 >
                   {view === "login"
-                    ? "Нет аккаунта? Зарегистрироваться"
-                    : "Уже есть аккаунт? Войти"}
+                    ? translate("no_account") + " " + translate("register")
+                    : translate("already_have_account") + " " + translate("enter")}
                 </Button>
               </div>
             </CardContent>
@@ -680,7 +783,7 @@ export default function App() {
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-lg px-8 py-6"
                 size="lg"
               >
-                + Создать первую поездку
+                + {translate("create_first_trip")}
               </Button>
             </motion.div>
           ) : (
@@ -717,7 +820,7 @@ export default function App() {
                         </div>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600">Прогресс</span>
+                            <span className="text-gray-600">{translate("general_progress")}</span>
                             <span className="font-semibold text-blue-600">{trip.progress}%</span>
                           </div>
                           <Progress value={trip.progress} className="h-2" />
@@ -729,10 +832,10 @@ export default function App() {
                         )}
                         <div className="pt-2 border-t">
                           <p className="text-xs text-gray-400">
-                            Участников: {trip.users.length}
+                            {translate("participants_count")}: {trip.users.length}
                           </p>
                           {trip.createdBy === user?.id && (
-                            <p className="text-xs text-blue-500 mt-1">👑 Создатель</p>
+                            <p className="text-xs text-blue-500 mt-1">{translate("creator")}</p>
                           )}
                         </div>
                       </CardContent>
@@ -752,7 +855,7 @@ export default function App() {
                 >
                   <CardContent className="p-6 w-full text-center">
                     <div className="text-4xl mb-3">➕</div>
-                    <p className="text-gray-600 font-medium">Создать поездку</p>
+                    <p className="text-gray-600 font-medium">{translate("create_trip")}</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -765,14 +868,25 @@ export default function App() {
 
   // Expense handling
   const addExpense = () => {
-    if (!activeTrip || !user || !newExpense.description.trim() || !newExpense.amount) return;
+    if (!activeTrip || !user) return;
     
-    const amount = parseFloat(newExpense.amount);
-    if (isNaN(amount) || amount <= 0) {
-      alert(language === "ru" ? "Введите корректную сумму" : "Enter a valid amount");
+    const errors: Record<string, string> = {};
+    if (!newExpense.description.trim()) errors.description = translate("field_required");
+    if (!newExpense.amount) {
+      errors.amount = translate("field_required");
+    } else {
+      const amount = parseFloat(newExpense.amount);
+      if (isNaN(amount) || amount <= 0) {
+        errors.amount = translate("enter_valid_amount");
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
-    
+
+    const amount = parseFloat(newExpense.amount);
     const sharedBy = newExpense.sharedBy.length > 0 ? newExpense.sharedBy : activeTrip.users;
     const currency = newExpense.currency || activeTrip.currency || "RUB";
     
@@ -797,6 +911,7 @@ export default function App() {
     setActiveTrip(withProgress);
     saveTrip(withProgress);
     setNewExpense({ description: "", amount: "", category: "", sharedBy: [], currency: activeTrip.currency || "RUB" });
+    setFormErrors({});
     setExpenseDialogOpen(false);
   };
 
@@ -814,7 +929,15 @@ export default function App() {
 
   // Place management
   const addPlace = () => {
-    if (!activeTrip || !user || !newPlace.name.trim()) return;
+    if (!activeTrip || !user) return;
+    
+    const errors: Record<string, string> = {};
+    if (!newPlace.name.trim()) errors.name = translate("field_required");
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
     
     const maxOrder = Math.max(0, ...(activeTrip.places || []).map(p => p.order));
     const place = {
@@ -826,6 +949,8 @@ export default function App() {
       googleMapsLink: newPlace.googleMapsLink || "",
       order: maxOrder + 1,
       status: newPlace.status || "pending",
+      price: parseFloat(newPlace.price) || 0,
+      currency: newPlace.currency || "EUR",
       createdAt: new Date(),
     };
     
@@ -838,7 +963,8 @@ export default function App() {
     const withProgress = { ...updated, progress: calculateProgress(updated) };
     setActiveTrip(withProgress);
     saveTrip(withProgress);
-    setNewPlace({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new", currency: "EUR" });
+    setNewPlace({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new", currency: "EUR", price: "" });
+    setFormErrors({});
     setPlaceDialogOpen(false);
   };
 
@@ -868,7 +994,15 @@ export default function App() {
 
   // Activity management
   const addActivity = () => {
-    if (!activeTrip || !user || !newActivity.name.trim()) return;
+    if (!activeTrip || !user) return;
+    
+    const errors: Record<string, string> = {};
+    if (!newActivity.name.trim()) errors.name = translate("field_required");
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
     
     const activity: Activity = {
       id: Date.now().toString(),
@@ -896,6 +1030,7 @@ export default function App() {
     setActiveTrip(withProgress);
     saveTrip(withProgress);
     setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new", currency: "EUR" });
+    setFormErrors({});
     setActivityDialogOpen(false);
   };
 
@@ -903,12 +1038,12 @@ export default function App() {
     if (!e.target.files?.[0]) return;
     const file = e.target.files[0];
     if (file.size > 5 * 1024 * 1024) {
-      alert(language === "ru" ? "Файл слишком большой (максимум 5MB)" : "File too large (max 5MB)");
+      alert(translate("file_too_large"));
       return;
     }
     const reader = new FileReader();
     reader.onerror = () => {
-      alert(language === "ru" ? "Ошибка при загрузке изображения" : "Error loading image");
+      alert(translate("error_loading_image"));
     };
     reader.onloadend = () => {
       if (reader.result) {
@@ -920,7 +1055,15 @@ export default function App() {
 
   // Accommodation management
   const addAccommodation = () => {
-    if (!activeTrip || !user || !newAccommodation.name.trim()) return;
+    if (!activeTrip || !user) return;
+    
+    const errors: Record<string, string> = {};
+    if (!newAccommodation.name.trim()) errors.name = translate("field_required");
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
     
     const accommodation: Accommodation = {
       id: Date.now().toString(),
@@ -946,6 +1089,7 @@ export default function App() {
     setActiveTrip(withProgress);
     saveTrip(withProgress);
     setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new", currency: "EUR" });
+    setFormErrors({});
     setAccommodationDialogOpen(false);
   };
 
@@ -973,7 +1117,16 @@ export default function App() {
 
   // Transport management
   const addTransport = () => {
-    if (!activeTrip || !user || !newTransport.from.trim() || !newTransport.to.trim()) return;
+    if (!activeTrip || !user) return;
+    
+    const errors: Record<string, string> = {};
+    if (!newTransport.from.trim()) errors.from = translate("field_required");
+    if (!newTransport.to.trim()) errors.to = translate("field_required");
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
     
     const transport: Transport = {
       id: Date.now().toString(),
@@ -988,6 +1141,8 @@ export default function App() {
       description: newTransport.description,
       imageUrl: newTransport.imageUrl,
       status: newTransport.status || "new",
+      price: parseFloat(newTransport.price) || 0,
+      currency: newTransport.currency || "EUR",
       createdAt: new Date(),
     };
     
@@ -1000,7 +1155,8 @@ export default function App() {
     const withProgress = { ...updated, progress: calculateProgress(updated) };
     setActiveTrip(withProgress);
     saveTrip(withProgress);
-    setNewTransport({ type: "plane", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", imageUrl: "", status: "new", currency: "EUR" });
+    setNewTransport({ type: "plane", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", imageUrl: "", status: "new", currency: "EUR", price: "" });
+    setFormErrors({});
     setTransportDialogOpen(false);
   };
 
@@ -1043,12 +1199,12 @@ export default function App() {
                 onClick={() => setView("dashboard")}
                 className="text-lg"
               >
-                ← Назад
+                ← {translate("back")}
               </Button>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mt-4">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mt-0">
                 {activeTrip && isTripPast(activeTrip) 
-                  ? (language === "ru" ? "Информация о поездке" : "Trip Information")
-                  : (language === "ru" ? "Планирование поездки" : "Trip Planning")
+                  ? translate("trip_information")
+                  : translate("trip_planning")
                 }
               </h1>
             </div>
@@ -1092,7 +1248,7 @@ export default function App() {
                       </Button>
                     </div>
                     <p className="text-sm text-gray-500">
-                      {language === "ru" ? "Обновлено" : "Updated"}: {new Date(activeTrip.updatedAt).toLocaleString(language === "ru" ? "ru-RU" : "en-US")}
+                      {translate("updated")}: {new Date(activeTrip.updatedAt).toLocaleString(language === "ru" ? "ru-RU" : "en-US")}
                     </p>
                   </div>
                   <div className="flex flex-col gap-2">
@@ -1140,12 +1296,12 @@ export default function App() {
                     onClick={() => setInviteDialogOpen(true)}
                     className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                   >
-                    + {language === "ru" ? "Пригласить" : "Invite"}
+                    + {translate("invite")}
                   </Button>
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <label className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-2">
-                    👥 Участники поездки
+                    👥 {translate("participants")}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {tripUsers.map((u) => (
@@ -1175,6 +1331,42 @@ export default function App() {
             </Card>
           </motion.div>
 
+          {/* Progress and Actions Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          >
+            {/* Progress Section */}
+            <Card className="md:col-span-2 shadow-xl border-0 bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 backdrop-blur-sm">
+              <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-gray-700">{translate("general_progress")}</span>
+                  <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{activeTrip.progress}%</span>
+                </div>
+                <Progress value={activeTrip.progress} className="h-4" />
+              </CardContent>
+            </Card>
+
+            {/* Actions Buttons */}
+            <div className="flex gap-4">
+              <Button
+                onClick={() => setView("chat")}
+                variant="outline"
+                className="flex-1 h-full text-lg shadow-md hover:shadow-lg transition-all"
+              >
+                💬 {translate("chat")}
+              </Button>
+              <Button
+                onClick={() => setView("summary")}
+                className="flex-1 h-full text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all"
+              >
+                📋 {translate("summary")}
+              </Button>
+            </div>
+          </motion.div>
+
           {/* Places Section - Separate Block */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -1185,7 +1377,7 @@ export default function App() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
-                    📍 Места назначения
+                    📍 {translate("places")}
                   </h2>
                   <Button
                     onClick={() => setPlaceDialogOpen(true)}
@@ -1193,7 +1385,7 @@ export default function App() {
                     size="sm"
                     className="border-blue-300 text-blue-600 hover:bg-blue-50"
                   >
-                    + Добавить место
+                    + {translate("add_place")}
                   </Button>
                 </div>
                 <div className="space-y-3">
@@ -1221,7 +1413,7 @@ export default function App() {
                               rel="noopener noreferrer"
                               className="text-blue-600 text-sm hover:underline mt-1 inline-block font-medium"
                             >
-                              🗺️ Открыть в Google Maps
+                              🗺️ {translate("open_google_maps")}
                             </a>
                           )}
                         </div>
@@ -1246,10 +1438,12 @@ export default function App() {
                               imageUrl: place.imageUrl,
                               googleMapsLink: place.googleMapsLink,
                               status: (place.status || "new") as "new" | "possible" | "rejected" | "approved",
-                              currency: place.currency || "EUR",
-                            });
-                            setEditPlaceDialogOpen(true);
-                          }}
+                                currency: place.currency || "EUR",
+                                price: place.price?.toString() || "",
+                              });
+                              setEditPlaceDialogOpen(true);
+                              setFormErrors({});
+                            }}
                           variant="outline"
                           size="sm"
                           className="border-blue-300 text-blue-600 hover:bg-blue-50"
@@ -1258,7 +1452,7 @@ export default function App() {
                         </Button>
                         <Button
                           onClick={() => {
-                            if (window.confirm(language === "ru" ? "Удалить это место?" : "Delete this place?")) {
+                            if (window.confirm(translate("confirm_delete_place"))) {
                               const updated = {
                                 ...activeTrip,
                                 places: (activeTrip.places || []).filter(p => p.id !== place.id),
@@ -1293,7 +1487,7 @@ export default function App() {
                             size="sm"
                             className="border-blue-300 text-blue-600 hover:bg-blue-50"
                           >
-                            ↑ Вверх
+                            ↑ {translate("up")}
                           </Button>
                         )}
                         {place.order < (activeTrip.places || []).length && (
@@ -1314,7 +1508,7 @@ export default function App() {
                             size="sm"
                             className="border-blue-300 text-blue-600 hover:bg-blue-50"
                           >
-                            ↓ Вниз
+                            ↓ {translate("down")}
                           </Button>
                         )}
                       </div>
@@ -1323,7 +1517,7 @@ export default function App() {
                   {(activeTrip.places || []).length === 0 && (
                     <div className="text-center py-8 text-gray-400">
                       <div className="text-4xl mb-2">📍</div>
-                      <p className="text-sm">Нет добавленных мест</p>
+                      <p className="text-sm">{translate("no_places")}</p>
                     </div>
                   )}
                 </div>
@@ -1341,15 +1535,18 @@ export default function App() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent flex items-center gap-2">
-                    💰 Бюджет и расходы
+                    💰 {translate("budget_expenses")}
                   </h2>
                   <Button
-                    onClick={() => setExpenseDialogOpen(true)}
+                    onClick={() => {
+                      setFormErrors({});
+                      setExpenseDialogOpen(true);
+                    }}
                     variant="outline"
                     size="sm"
                     className="border-green-300 text-green-600 hover:bg-green-50"
                   >
-                    + Добавить расход
+                    + {translate("add_expense")}
                   </Button>
                 </div>
                 
@@ -1384,6 +1581,7 @@ export default function App() {
                                     currency: exp.currency || activeTrip?.currency || "RUB",
                                   });
                                   setEditExpenseDialogOpen(true);
+                                  setFormErrors({});
                                 }}
                                 variant="ghost"
                                 size="sm"
@@ -1410,9 +1608,9 @@ export default function App() {
                             </div>
                           );
                         })}
-                        <div className="pt-2 border-t border-green-200 font-semibold text-green-700">
-                          Итого по категории: {expenses.reduce((sum, e) => sum + e.amount, 0).toFixed(2)} ₽
-                        </div>
+                          <div className="pt-2 border-t border-green-200 font-semibold text-green-700">
+                           {translate("total_category")}: {expenses.reduce((sum, e) => sum + e.amount, 0).toFixed(2)} {activeTrip.currency || "RUB"}
+                          </div>
                       </div>
                     </div>
                   ))}
@@ -1420,7 +1618,7 @@ export default function App() {
 
                 {/* Debts */}
                 <div className="pt-4 border-t border-green-200">
-                  <h3 className="font-semibold mb-3 text-gray-700">Долги участников:</h3>
+                  <h3 className="font-semibold mb-3 text-gray-700">{translate("debts")}:</h3>
                   <div className="space-y-2">
                     {tripUsers.map((u) => {
                       const userExpenses = getUserExpenses(u.id);
@@ -1432,14 +1630,14 @@ export default function App() {
                         <div key={u.id} className="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
                           <span className="font-medium text-gray-700">{u.name}</span>
                           <span className={`font-semibold ${debt > 0 ? "text-red-600" : debt < 0 ? "text-green-600" : "text-gray-600"}`}>
-                            {debt > 0 ? `Должен: ${debt.toFixed(2)} ₽` : debt < 0 ? `Должны: ${Math.abs(debt).toFixed(2)} ₽` : "Баланс"}
+                            {debt > 0 ? `${translate("owes")}: ${debt.toFixed(2)} ${activeTrip.currency || "RUB"}` : debt < 0 ? `${translate("owed")}: ${Math.abs(debt).toFixed(2)} ${activeTrip.currency || "RUB"}` : translate("balance")}
                           </span>
                         </div>
                       );
                     })}
                   </div>
                   <div className="mt-4 pt-4 border-t border-green-200 font-bold text-lg text-green-700 bg-green-50 p-3 rounded-lg">
-                    Всего потрачено: {getTotalExpenses().toFixed(2)} ₽
+                    {translate("total_spent")}: {getTotalExpenses().toFixed(2)} {activeTrip.currency || "RUB"}
                   </div>
                 </div>
               </CardContent>
@@ -1456,15 +1654,18 @@ export default function App() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent flex items-center gap-2">
-                    🎯 Активности
+                    🎯 {translate("activities")}
                   </h2>
                   <Button
-                    onClick={() => setActivityDialogOpen(true)}
+                    onClick={() => {
+                      setFormErrors({});
+                      setActivityDialogOpen(true);
+                    }}
                     variant="outline"
                     size="sm"
                     className="border-orange-300 text-orange-600 hover:bg-orange-50"
                   >
-                    + Добавить активность
+                    + {translate("add_activity")}
                   </Button>
                 </div>
                 <div className="space-y-3">
@@ -1480,7 +1681,7 @@ export default function App() {
                           <div className="flex-1">
                             <div className="font-semibold text-lg flex items-center gap-2 text-gray-800">
                               {activity.name}
-                              <span className="text-green-600 text-xs bg-green-100 px-2 py-0.5 rounded-full font-bold">✓ Утверждено</span>
+                              <span className="text-green-600 text-xs bg-green-100 px-2 py-0.5 rounded-full font-bold">{translate("approved")}</span>
                             </div>
                             <div className="text-sm text-gray-600 mt-1">{activity.description}</div>
                             <div className="text-sm text-gray-500 mt-1">📍 {activity.address}</div>
@@ -1491,11 +1692,16 @@ export default function App() {
                                 rel="noopener noreferrer"
                                 className="text-blue-600 text-sm hover:underline mt-1 inline-block font-medium"
                               >
-                                🔗 Ссылка
+                                🔗 {translate("link")}
                               </a>
                             )}
+                            {activity.price > 0 && (
+                              <div className="text-sm font-semibold text-green-600 mt-2">
+                                {translate("price")}: {activity.price.toFixed(2)} {activity.currency || "EUR"}
+                              </div>
+                            )}
                             <div className="text-sm font-medium mt-2 bg-white px-3 py-1 rounded-full inline-block text-orange-700">
-                              📅 День {activity.day} в {activity.time}
+                              📅 {translate("day_param").replace("{day}", activity.day.toString()).replace("{time}", activity.time)}
                             </div>
                           </div>
                         </div>
@@ -1520,8 +1726,10 @@ export default function App() {
                                 time: activity.time,
                                 status: (activity.status || "approved") as any,
                                 currency: activity.currency || "EUR",
+                                price: activity.price?.toString() || "",
                               });
                               setEditActivityDialogOpen(true);
+                              setFormErrors({});
                             }}
                             variant="outline"
                             size="sm"
@@ -1531,7 +1739,7 @@ export default function App() {
                           </Button>
                           <Button
                             onClick={() => {
-                              if (window.confirm(language === "ru" ? "Удалить эту активность?" : "Delete this activity?")) {
+                              if (window.confirm(translate("confirm_delete_activity"))) {
                                 const updated = {
                                   ...activeTrip,
                                   activities: ((activeTrip.activities as unknown as Activity[]) || []).filter((a: Activity) => a.id !== activity.id),
@@ -1570,8 +1778,13 @@ export default function App() {
                                   rel="noopener noreferrer"
                                   className="text-blue-600 text-sm hover:underline mt-1 inline-block font-medium"
                                 >
-                                  🔗 Ссылка
+                                  🔗 {translate("link")}
                                 </a>
+                              )}
+                              {activity.price > 0 && (
+                                <div className="text-sm font-semibold text-green-600 mt-2">
+                                  {translate("price")}: {activity.price.toFixed(2)} {activity.currency || "EUR"}
+                                </div>
                               )}
                             </div>
                           </div>
@@ -1606,7 +1819,7 @@ export default function App() {
                               size="sm"
                               className={hasVoted ? "bg-blue-600" : "border-blue-300 text-blue-600 hover:bg-blue-50"}
                             >
-                              {hasVoted ? "✓ Голос отдан" : "Голосовать"} ({voteCount})
+                              {hasVoted ? translate("voted") : translate("vote")} ({voteCount})
                             </Button>
                             <Button
                               onClick={() => {
@@ -1621,8 +1834,10 @@ export default function App() {
                                   time: activity.time,
                                   status: (activity.status || "new") as "new" | "possible" | "rejected" | "approved",
                                   currency: activity.currency || "EUR",
+                                  price: activity.price?.toString() || "",
                                 });
                                 setEditActivityDialogOpen(true);
+                                setFormErrors({});
                               }}
                               variant="outline"
                               size="sm"
@@ -1653,7 +1868,7 @@ export default function App() {
                             )}
                             <Button
                               onClick={async () => {
-                                if (window.confirm(language === "ru" ? "Удалить эту активность?" : "Delete this activity?")) {
+                                if (window.confirm(translate("confirm_delete_activity"))) {
                                   const updated = {
                                     ...activeTrip,
                                     activities: ((activeTrip.activities as unknown as Activity[]) || []).filter((a: Activity) => a.id !== activity.id),
@@ -1677,7 +1892,7 @@ export default function App() {
                   {((activeTrip.activities as unknown as Activity[])?.length || 0) === 0 && (
                     <div className="text-center py-8 text-gray-400">
                       <div className="text-4xl mb-2">🎯</div>
-                      <p className="text-sm">Нет добавленных активностей</p>
+                      <p className="text-sm">{translate("no_activities")}</p>
                     </div>
                   )}
                 </div>
@@ -1695,15 +1910,18 @@ export default function App() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent flex items-center gap-2">
-                    🏠 Жильё
+                    🏠 {translate("accommodation")}
                   </h2>
                   <Button
-                    onClick={() => setAccommodationDialogOpen(true)}
+                    onClick={() => {
+                      setFormErrors({});
+                      setAccommodationDialogOpen(true);
+                    }}
                     variant="outline"
                     size="sm"
                     className="border-purple-300 text-purple-600 hover:bg-purple-50"
                   >
-                    + Добавить жильё
+                    + {translate("add_accommodation")}
                   </Button>
                 </div>
                 <div className="space-y-3">
@@ -1722,11 +1940,11 @@ export default function App() {
                           <div className="text-sm text-gray-600 mt-1">📍 {acc.address}</div>
                           <div className="text-sm text-gray-500 mt-1">{acc.description}</div>
                           <div className="text-sm mt-2 bg-purple-50 px-3 py-1 rounded-full inline-block">
-                            <span className="font-medium text-purple-700">Заезд:</span> {acc.checkIn} | <span className="font-medium text-purple-700">Выезд:</span> {acc.checkOut}
+                            <span className="font-medium text-purple-700">{translate("check_in")}:</span> {acc.checkIn} | <span className="font-medium text-purple-700">{translate("check_out")}:</span> {acc.checkOut}
                           </div>
                           {acc.price > 0 && (
                             <div className="text-sm font-semibold text-green-600 mt-2">
-                              Цена: {acc.price.toFixed(2)} ₽
+                              {translate("price")}: {acc.price.toFixed(2)} {acc.currency || "EUR"}
                             </div>
                           )}
                           {acc.bookingLink && (
@@ -1736,7 +1954,7 @@ export default function App() {
                               rel="noopener noreferrer"
                               className="text-blue-600 text-sm hover:underline mt-2 inline-block font-medium"
                             >
-                              🔗 Открыть на Booking.com
+                              🔗 {translate("open_booking")}
                             </a>
                           )}
                         </div>
@@ -1758,6 +1976,7 @@ export default function App() {
                               currency: acc.currency || "EUR",
                             });
                             setEditAccommodationDialogOpen(true);
+                            setFormErrors({});
                           }}
                           variant="outline"
                           size="sm"
@@ -1767,7 +1986,7 @@ export default function App() {
                         </Button>
                         <Button
                           onClick={() => {
-                            if (window.confirm(language === "ru" ? "Удалить это жилье?" : "Delete this accommodation?")) {
+                            if (window.confirm(translate("confirm_delete_accommodation"))) {
                               const updated = {
                                 ...activeTrip,
                                 accommodations: (activeTrip.accommodations || []).filter(a => a.id !== acc.id),
@@ -1808,15 +2027,18 @@ export default function App() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent flex items-center gap-2">
-                    🚗 Транспорт
+                    🚗 {translate("transport")}
                   </h2>
                   <Button
-                    onClick={() => setTransportDialogOpen(true)}
+                    onClick={() => {
+                      setFormErrors({});
+                      setTransportDialogOpen(true);
+                    }}
                     variant="outline"
                     size="sm"
                     className="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
                   >
-                    + Добавить транспорт
+                    + {translate("add_transport")}
                   </Button>
                 </div>
                 <div className="space-y-3">
@@ -1839,16 +2061,21 @@ export default function App() {
                               {tr.from} → {tr.to}
                             </div>
                             <div className="text-sm text-gray-500 mt-1">
-                              Отправление: {tr.departureTime} из {tr.departurePlace}
+                              {translate("departure_time")}: {tr.departureTime} {translate("from")} {tr.departurePlace}
                             </div>
                             {tr.arrivalTime && (
                               <div className="text-sm text-gray-500">
-                                Прибытие: {tr.arrivalTime} в {tr.arrivalPlace}
+                                {translate("arrival_time")}: {tr.arrivalTime} {translate("to")} {tr.arrivalPlace}
                               </div>
                             )}
                             <div className="text-sm text-gray-500 mt-1">
-                              Пассажиров: {tr.passengers}
+                              {translate("passengers")}: {tr.passengers}
                             </div>
+                            {tr.price > 0 && (
+                              <div className="text-sm font-semibold text-green-600 mt-2">
+                                {translate("price")}: {tr.price.toFixed(2)} {tr.currency || "EUR"}
+                              </div>
+                            )}
                             {tr.description && (
                               <div className="text-sm text-gray-600 mt-1">{tr.description}</div>
                             )}
@@ -1870,10 +2097,12 @@ export default function App() {
                                 description: tr.description,
                                 imageUrl: tr.imageUrl || "",
                                 status: (tr.status || "new") as "new" | "possible" | "rejected" | "approved",
-                                currency: tr.currency || "EUR",
-                              });
-                              setEditTransportDialogOpen(true);
-                            }}
+                                 currency: tr.currency || "EUR",
+                                 price: tr.price?.toString() || "",
+                               });
+                               setEditTransportDialogOpen(true);
+                               setFormErrors({});
+                             }}
                             variant="outline"
                             size="sm"
                             className="border-blue-300 text-blue-600 hover:bg-blue-50"
@@ -1882,7 +2111,7 @@ export default function App() {
                           </Button>
                           <Button
                             onClick={() => {
-                              if (window.confirm(language === "ru" ? "Удалить этот транспорт?" : "Delete this transport?")) {
+                              if (window.confirm(translate("delete_transport_confirm"))) {
                                 const updated = {
                                   ...activeTrip,
                                   transports: (activeTrip.transports || []).filter(t => t.id !== tr.id),
@@ -1914,105 +2143,92 @@ export default function App() {
             </Card>
           </motion.div>
 
-          {/* Progress Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Card className="shadow-2xl border-0 bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 backdrop-blur-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-gray-700">Общий прогресс</span>
-                  <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{activeTrip.progress}%</span>
-                </div>
-                <Progress value={activeTrip.progress} className="h-4" />
-              </CardContent>
-            </Card>
-          </motion.div>
 
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="flex gap-4 justify-center"
-          >
-            <Button
-              onClick={() => setView("chat")}
-              variant="outline"
-              className="flex-1 max-w-xs h-12 text-lg"
-            >
-              💬 Чат
-            </Button>
-            <Button
-              onClick={() => setView("summary")}
-              className="flex-1 max-w-xs h-12 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-            >
-              📋 Саммари
-            </Button>
-          </motion.div>
-
-          <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+          <Dialog open={inviteDialogOpen} onOpenChange={(open) => {
+            setInviteDialogOpen(open);
+            if (!open) setFormErrors({});
+          }}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Пригласить участника</DialogTitle>
+                <DialogTitle>{translate("invite_participant_title")}</DialogTitle>
                 <DialogDescription>
-                  Введите email пользователя, которого хотите пригласить в поездку
+                  {translate("invite_participant_desc")}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                <Input
-                  type="email"
-                  placeholder="Email участника"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  className="h-12"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      inviteUserToTrip();
-                    }
-                  }}
-                />
+                <div className="space-y-1">
+                  <Label htmlFor="invite_email" required>{translate("participant_email")}</Label>
+                  <Input
+                    id="invite_email"
+                    type="email"
+                    placeholder="Email участника"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    error={!!formErrors.invite}
+                    className="h-12"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        inviteUserToTrip();
+                      }
+                    }}
+                  />
+                  {formErrors.invite && <p className="text-red-500 text-sm">{formErrors.invite}</p>}
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
-                  Отмена
+                  {translate("cancel")}
                 </Button>
                 <Button
                   onClick={inviteUserToTrip}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 >
-                  Пригласить
+                  {translate("invite")}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
           {/* Expense Dialog */}
-          <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
+          <Dialog open={expenseDialogOpen} onOpenChange={(open) => {
+            setExpenseDialogOpen(open);
+            if (!open) setFormErrors({});
+          }}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Добавить расход</DialogTitle>
+                <DialogTitle>{translate("add_expense")}</DialogTitle>
                 <DialogDescription>
-                  Внесите информацию о расходе и выберите, кто его оплатил и с кем делится
+                  {translate("add_expense_desc")}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                <Input
-                  placeholder="Описание расхода"
-                  value={newExpense.description}
-                  onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
-                  className="h-12"
-                />
-                <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="expense_desc" required>{translate("expense_description")}</Label>
                   <Input
-                    type="number"
-                    placeholder={translate("amount")}
-                    value={newExpense.amount}
-                    onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                    id="expense_desc"
+                    placeholder={translate("expense_description")}
+                    value={newExpense.description}
+                    onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+                    error={!!formErrors.description}
                     className="h-12"
                   />
+                  {formErrors.description && <p className="text-red-500 text-sm">{formErrors.description}</p>}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="expense_amount" required>{translate("amount")}</Label>
+                    <Input
+                      id="expense_amount"
+                      type="number"
+                      placeholder={translate("amount")}
+                      value={newExpense.amount}
+                      onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                      error={!!formErrors.amount}
+                      className="h-12"
+                    />
+                    {formErrors.amount && <p className="text-red-500 text-sm">{formErrors.amount}</p>}
+                  </div>
                   <select
                     value={newExpense.currency || activeTrip?.currency || "RUB"}
                     onChange={(e) => setNewExpense({ ...newExpense, currency: e.target.value })}
@@ -2043,7 +2259,7 @@ export default function App() {
                 </div>
                 <div>
                   <label className="text-sm font-semibold mb-2 block">
-                    Распределить между (оставьте пустым для всех):
+                    {translate("split_between")}
                   </label>
                   <div className="space-y-2 max-h-40 overflow-y-auto">
                     {tripUsers.map((u) => (
@@ -2074,20 +2290,23 @@ export default function App() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setExpenseDialogOpen(false)}>
-                  Отмена
+                  {translate("cancel")}
                 </Button>
                 <Button
                   onClick={addExpense}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 >
-                  Добавить
+                  {translate("add_generic")}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
           {/* Place Dialog */}
-          <Dialog open={placeDialogOpen} onOpenChange={setPlaceDialogOpen}>
+          <Dialog open={placeDialogOpen} onOpenChange={(open) => {
+            setPlaceDialogOpen(open);
+            if (!open) setFormErrors({});
+          }}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{placeDialogOpen && !editingItem ? translate("add_place") : translate("edit")}</DialogTitle>
@@ -2096,12 +2315,18 @@ export default function App() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                <Input
-                  placeholder={translate("place_name")}
-                  value={newPlace.name}
-                  onChange={(e) => setNewPlace({ ...newPlace, name: e.target.value })}
-                  className="h-12"
-                />
+                <div className="space-y-1">
+                  <Label htmlFor="place_name" required>{translate("place_name")}</Label>
+                  <Input
+                    id="place_name"
+                    placeholder={translate("place_name")}
+                    value={newPlace.name}
+                    onChange={(e) => setNewPlace({ ...newPlace, name: e.target.value })}
+                    error={!!formErrors.name}
+                    className="h-12"
+                  />
+                  {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
+                </div>
                 <select
                   value={newPlace.currency}
                   onChange={(e) => setNewPlace({ ...newPlace, currency: e.target.value })}
@@ -2125,7 +2350,7 @@ export default function App() {
                 />
                 <div>
                   <label className="text-sm font-semibold mb-2 block">
-                    {language === "ru" ? "Статус" : "Status"}
+                    {translate("status")}
                   </label>
                   <select
                     value={newPlace.status}
@@ -2161,34 +2386,43 @@ export default function App() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setPlaceDialogOpen(false)}>
-                  Отмена
+                  {translate("cancel")}
                 </Button>
                 <Button
                   onClick={addPlace}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 >
-                  Добавить
+                  {translate("add_generic")}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
           {/* Activity Dialog */}
-          <Dialog open={activityDialogOpen} onOpenChange={setActivityDialogOpen}>
+          <Dialog open={activityDialogOpen} onOpenChange={(open) => {
+            setActivityDialogOpen(open);
+            if (!open) setFormErrors({});
+          }}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Добавить активность</DialogTitle>
+                <DialogTitle>{translate("add_activity")}</DialogTitle>
                 <DialogDescription>
-                  Добавьте активность с описанием, картинкой и ссылкой
+                  {translate("activity_desc_placeholder")}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                <Input
-                  placeholder="Название активности"
-                  value={newActivity.name}
-                  onChange={(e) => setNewActivity({ ...newActivity, name: e.target.value })}
-                  className="h-12"
-                />
+                <div className="space-y-1">
+                  <Label htmlFor="activity_name" required>{translate("activity_name")}</Label>
+                  <Input
+                    id="activity_name"
+                    placeholder={translate("activity_name")}
+                    value={newActivity.name}
+                    onChange={(e) => setNewActivity({ ...newActivity, name: e.target.value })}
+                    error={!!formErrors.name}
+                    className="h-12"
+                  />
+                  {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
+                </div>
                 <select
                   value={newActivity.currency}
                   onChange={(e) => setNewActivity({ ...newActivity, currency: e.target.value })}
@@ -2219,13 +2453,13 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-2">
                   <Input
                     type="number"
-                    placeholder="День путешествия"
+                    placeholder={translate("trip_day")}
                     value={newActivity.day}
                     onChange={(e) => setNewActivity({ ...newActivity, day: parseInt(e.target.value) || 1 })}
                     className="h-12"
                   />
                   <Input
-                    placeholder="Время (например: 10:00)"
+                    placeholder={translate("time_placeholder")}
                     value={newActivity.time}
                     onChange={(e) => setNewActivity({ ...newActivity, time: e.target.value })}
                     className="h-12"
@@ -2254,20 +2488,23 @@ export default function App() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setActivityDialogOpen(false)}>
-                  Отмена
+                  {translate("cancel")}
                 </Button>
                 <Button
                   onClick={addActivity}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 >
-                  Добавить
+                  {translate("add_generic")}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
           {/* Accommodation Dialog */}
-          <Dialog open={accommodationDialogOpen} onOpenChange={setAccommodationDialogOpen}>
+          <Dialog open={accommodationDialogOpen} onOpenChange={(open) => {
+            setAccommodationDialogOpen(open);
+            if (!open) setFormErrors({});
+          }}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{accommodationDialogOpen && !editingItem ? translate("add_accommodation") : translate("edit")}</DialogTitle>
@@ -2276,12 +2513,18 @@ export default function App() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                <Input
-                  placeholder="Название отеля/жилья"
-                  value={newAccommodation.name}
-                  onChange={(e) => setNewAccommodation({ ...newAccommodation, name: e.target.value })}
-                  className="h-12"
-                />
+                <div className="space-y-1">
+                  <Label htmlFor="hotel_name" required>{translate("hotel_name")}</Label>
+                  <Input
+                    id="hotel_name"
+                    placeholder={translate("hotel_name")}
+                    value={newAccommodation.name}
+                    onChange={(e) => setNewAccommodation({ ...newAccommodation, name: e.target.value })}
+                    error={!!formErrors.name}
+                    className="h-12"
+                  />
+                  {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
+                </div>
                 <Input
                   placeholder="Адрес"
                   value={newAccommodation.address}
@@ -2303,14 +2546,14 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-2">
                   <Input
                     type="date"
-                    placeholder="Дата заезда"
+                    placeholder={translate("check_in")}
                     value={newAccommodation.checkIn}
                     onChange={(e) => setNewAccommodation({ ...newAccommodation, checkIn: e.target.value })}
                     className="h-12"
                   />
                   <Input
                     type="date"
-                    placeholder="Дата выезда"
+                    placeholder={translate("check_out")}
                     value={newAccommodation.checkOut}
                     onChange={(e) => setNewAccommodation({ ...newAccommodation, checkOut: e.target.value })}
                     className="h-12"
@@ -2355,53 +2598,71 @@ export default function App() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setAccommodationDialogOpen(false)}>
-                  Отмена
+                  {translate("cancel")}
                 </Button>
                 <Button
                   onClick={addAccommodation}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 >
-                  Добавить
+                  {translate("add_generic")}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
           {/* Transport Dialog */}
-          <Dialog open={transportDialogOpen} onOpenChange={setTransportDialogOpen}>
+          <Dialog open={transportDialogOpen} onOpenChange={(open) => {
+            setTransportDialogOpen(open);
+            if (!open) setFormErrors({});
+          }}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Добавить транспорт</DialogTitle>
+                <DialogTitle>{translate("add_transport")}</DialogTitle>
                 <DialogDescription>
-                  Добавьте информацию о транспорте
+                  {translate("transport_desc")}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                <select
-                  value={newTransport.type}
-                  onChange={(e) => setNewTransport({ ...newTransport, type: e.target.value as any })}
-                  className="w-full px-3 py-2 border rounded-md h-12"
-                >
-                  <option value="plane">✈️ Самолет</option>
-                  <option value="train">🚂 Поезд</option>
-                  <option value="bus">🚌 Автобус</option>
-                  <option value="car">🚗 Автомобиль</option>
-                  <option value="ship">🚢 Корабль</option>
-                  <option value="other">🚛 Другое</option>
-                </select>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    placeholder="Откуда"
-                    value={newTransport.from}
-                    onChange={(e) => setNewTransport({ ...newTransport, from: e.target.value })}
-                    className="h-12"
-                  />
-                  <Input
-                    placeholder="Куда"
-                    value={newTransport.to}
-                    onChange={(e) => setNewTransport({ ...newTransport, to: e.target.value })}
-                    className="h-12"
-                  />
+                <div className="space-y-1">
+                  <label className="text-sm font-semibold mb-2 block">{translate("transport_type")}</label>
+                  <select
+                    value={newTransport.type}
+                    onChange={(e) => setNewTransport({ ...newTransport, type: e.target.value as any })}
+                    className="w-full px-3 py-2 border rounded-md h-12"
+                  >
+                    <option value="plane">{translate("transport_plane")}</option>
+                    <option value="train">{translate("transport_train")}</option>
+                    <option value="bus">{translate("transport_bus")}</option>
+                    <option value="car">{translate("transport_car")}</option>
+                    <option value="ship">{translate("transport_ship")}</option>
+                    <option value="other">{translate("transport_other")}</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="transport_from" required>{translate("from")}</Label>
+                    <Input
+                      id="transport_from"
+                      placeholder={translate("from")}
+                      value={newTransport.from}
+                      onChange={(e) => setNewTransport({ ...newTransport, from: e.target.value })}
+                      error={!!formErrors.from}
+                      className="h-12"
+                    />
+                    {formErrors.from && <p className="text-red-500 text-sm">{formErrors.from}</p>}
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="transport_to" required>{translate("to")}</Label>
+                    <Input
+                      id="transport_to"
+                      placeholder={translate("to")}
+                      value={newTransport.to}
+                      onChange={(e) => setNewTransport({ ...newTransport, to: e.target.value })}
+                      error={!!formErrors.to}
+                      className="h-12"
+                    />
+                    {formErrors.to && <p className="text-red-500 text-sm">{formErrors.to}</p>}
+                  </div>
                 </div>
                 <Input
                   placeholder="Время отправления"
@@ -2529,23 +2790,32 @@ export default function App() {
           </Dialog>
 
           {/* Edit Trip Name Dialog */}
-          <Dialog open={editTripNameDialogOpen} onOpenChange={setEditTripNameDialogOpen}>
+          <Dialog open={editTripNameDialogOpen} onOpenChange={(open) => {
+            setEditTripNameDialogOpen(open);
+            if (!open) setFormErrors({});
+          }}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{translate("edit")} {translate("name")}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <Input
-                  placeholder={translate("name")}
-                  value={editingItem?.name || ""}
-                  onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                  className="h-12"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      updateTripName();
-                    }
-                  }}
-                />
+                <div className="space-y-1">
+                  <Label htmlFor="trip-name" required>{translate("name")}</Label>
+                  <Input
+                    id="trip-name"
+                    placeholder={translate("name")}
+                    value={editingItem?.name || ""}
+                    onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                    error={!!formErrors.name}
+                    className="h-12"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        updateTripName();
+                      }
+                    }}
+                  />
+                  {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
+                </div>
                 
                   <div className="flex flex-col gap-2">
                     <div className="text-sm font-medium text-gray-700">{translate("image")} (Cover)</div>
@@ -2591,18 +2861,27 @@ export default function App() {
           </Dialog>
 
           {/* Edit Place Dialog */}
-          <Dialog open={editPlaceDialogOpen} onOpenChange={setEditPlaceDialogOpen}>
+          <Dialog open={editPlaceDialogOpen} onOpenChange={(open) => {
+            setEditPlaceDialogOpen(open);
+            if (!open) setFormErrors({});
+          }}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{translate("edit")} {translate("place")}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <Input
-                  placeholder={translate("place_name")}
-                  value={newPlace.name}
-                  onChange={(e) => setNewPlace({ ...newPlace, name: e.target.value })}
-                  className="h-12"
-                />
+                <div className="space-y-1">
+                  <Label htmlFor="place_name" required>{translate("place_name")}</Label>
+                  <Input
+                    id="place_name"
+                    placeholder={translate("place_name")}
+                    value={newPlace.name}
+                    onChange={(e) => setNewPlace({ ...newPlace, name: e.target.value })}
+                    error={!!formErrors.name}
+                    className="h-12"
+                  />
+                  {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
+                </div>
                 <select
                   value={newPlace.currency}
                   onChange={(e) => setNewPlace({ ...newPlace, currency: e.target.value })}
@@ -2645,7 +2924,7 @@ export default function App() {
                 <Button variant="outline" onClick={() => {
                   setEditPlaceDialogOpen(false);
                   setEditingItem(null);
-                  setNewPlace({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new", currency: "EUR" });
+                  setNewPlace({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new", currency: "EUR", price: "" });
                 }}>
                   {translate("cancel")}
                 </Button>
@@ -2660,18 +2939,27 @@ export default function App() {
           </Dialog>
 
           {/* Edit Activity Dialog */}
-          <Dialog open={editActivityDialogOpen} onOpenChange={setEditActivityDialogOpen}>
+          <Dialog open={editActivityDialogOpen} onOpenChange={(open) => {
+            setEditActivityDialogOpen(open);
+            if (!open) setFormErrors({});
+          }}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{translate("edit")} {translate("activity_name")}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <Input
-                  placeholder={translate("activity_name")}
-                  value={newActivity.name}
-                  onChange={(e) => setNewActivity({ ...newActivity, name: e.target.value })}
-                  className="h-12"
-                />
+                <div className="space-y-1">
+                  <Label htmlFor="edit_activity_name" required>{translate("activity_name")}</Label>
+                  <Input
+                    id="edit_activity_name"
+                    placeholder={translate("activity_name")}
+                    value={newActivity.name}
+                    onChange={(e) => setNewActivity({ ...newActivity, name: e.target.value })}
+                    error={!!formErrors.name}
+                    className="h-12"
+                  />
+                  {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
+                </div>
                 <select
                   value={newActivity.currency}
                   onChange={(e) => setNewActivity({ ...newActivity, currency: e.target.value })}
@@ -2748,18 +3036,27 @@ export default function App() {
           </Dialog>
 
           {/* Edit Accommodation Dialog */}
-          <Dialog open={editAccommodationDialogOpen} onOpenChange={setEditAccommodationDialogOpen}>
+          <Dialog open={editAccommodationDialogOpen} onOpenChange={(open) => {
+            setEditAccommodationDialogOpen(open);
+            if (!open) setFormErrors({});
+          }}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{translate("edit")} {translate("accommodation")}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <Input
-                  placeholder={translate("hotel_name")}
-                  value={newAccommodation.name}
-                  onChange={(e) => setNewAccommodation({ ...newAccommodation, name: e.target.value })}
-                  className="h-12"
-                />
+                <div className="space-y-1">
+                  <Label htmlFor="edit_hotel_name" required>{translate("hotel_name")}</Label>
+                  <Input
+                    id="edit_hotel_name"
+                    placeholder={translate("hotel_name")}
+                    value={newAccommodation.name}
+                    onChange={(e) => setNewAccommodation({ ...newAccommodation, name: e.target.value })}
+                    error={!!formErrors.name}
+                    className="h-12"
+                  />
+                  {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
+                </div>
                 <select
                   value={newAccommodation.currency}
                   onChange={(e) => setNewAccommodation({ ...newAccommodation, currency: e.target.value })}
@@ -2844,7 +3141,10 @@ export default function App() {
           </Dialog>
 
           {/* Edit Transport Dialog */}
-          <Dialog open={editTransportDialogOpen} onOpenChange={setEditTransportDialogOpen}>
+          <Dialog open={editTransportDialogOpen} onOpenChange={(open) => {
+            setEditTransportDialogOpen(open);
+            if (!open) setFormErrors({});
+          }}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{translate("edit")} {translate("transport")}</DialogTitle>
@@ -2855,12 +3155,12 @@ export default function App() {
                   onChange={(e) => setNewTransport({ ...newTransport, type: e.target.value as any })}
                   className="w-full px-3 py-2 border rounded-md h-12"
                 >
-                  <option value="plane">✈️ {translate("transport")}</option>
-                  <option value="train">🚂 {translate("transport")}</option>
-                  <option value="bus">🚌 {translate("transport")}</option>
-                  <option value="car">🚗 {translate("transport")}</option>
-                  <option value="ship">🚢 {translate("transport")}</option>
-                  <option value="other">🚛 {translate("category_other")}</option>
+                  <option value="plane">✈️ {translate("transport_plane")}</option>
+                  <option value="train">🚂 {translate("transport_train")}</option>
+                  <option value="bus">🚌 {translate("transport_bus")}</option>
+                  <option value="car">🚗 {translate("transport_car")}</option>
+                  <option value="ship">🚢 {translate("transport_ship")}</option>
+                  <option value="other">🚛 {translate("transport_other")}</option>
                 </select>
                 <select
                   value={newTransport.currency}
@@ -2871,19 +3171,33 @@ export default function App() {
                   <option value="RUB">RUB</option>
                   <option value="USD">USD</option>
                 </select>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    placeholder={translate("from")}
-                    value={newTransport.from}
-                    onChange={(e) => setNewTransport({ ...newTransport, from: e.target.value })}
-                    className="h-12"
-                  />
-                  <Input
-                    placeholder={translate("to")}
-                    value={newTransport.to}
-                    onChange={(e) => setNewTransport({ ...newTransport, to: e.target.value })}
-                    className="h-12"
-                  />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="transport_from" required>{translate("from")}</Label>
+                      <Input
+                        id="transport_from"
+                        placeholder={translate("from")}
+                        value={newTransport.from}
+                        onChange={(e) => setNewTransport({ ...newTransport, from: e.target.value })}
+                        error={!!formErrors.from}
+                        className="h-12"
+                      />
+                      {formErrors.from && <p className="text-red-500 text-sm">{formErrors.from}</p>}
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="transport_to" required>{translate("to")}</Label>
+                      <Input
+                        id="transport_to"
+                        placeholder={translate("to")}
+                        value={newTransport.to}
+                        onChange={(e) => setNewTransport({ ...newTransport, to: e.target.value })}
+                        error={!!formErrors.to}
+                        className="h-12"
+                      />
+                      {formErrors.to && <p className="text-red-500 text-sm">{formErrors.to}</p>}
+                    </div>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Input
@@ -2972,26 +3286,41 @@ export default function App() {
           </Dialog>
 
           {/* Edit Expense Dialog */}
-          <Dialog open={editExpenseDialogOpen} onOpenChange={setEditExpenseDialogOpen}>
+          <Dialog open={editExpenseDialogOpen} onOpenChange={(open) => {
+            setEditExpenseDialogOpen(open);
+            if (!open) setFormErrors({});
+          }}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{translate("edit")} {translate("expense_description")}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <Input
-                  placeholder={translate("expense_description")}
-                  value={newExpense.description}
-                  onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
-                  className="h-12"
-                />
-                <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="edit_expense_desc" required>{translate("expense_description")}</Label>
                   <Input
-                    type="number"
-                    placeholder={translate("amount")}
-                    value={newExpense.amount}
-                    onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                    id="edit_expense_desc"
+                    placeholder={translate("expense_description")}
+                    value={newExpense.description}
+                    onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+                    error={!!formErrors.description}
                     className="h-12"
                   />
+                  {formErrors.description && <p className="text-red-500 text-sm">{formErrors.description}</p>}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="edit_expense_amount" required>{translate("amount")}</Label>
+                    <Input
+                      id="edit_expense_amount"
+                      type="number"
+                      placeholder={translate("amount")}
+                      value={newExpense.amount}
+                      onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                      error={!!formErrors.amount}
+                      className="h-12"
+                    />
+                    {formErrors.amount && <p className="text-red-500 text-sm">{formErrors.amount}</p>}
+                  </div>
                   <select
                     value={newExpense.currency || activeTrip?.currency || "RUB"}
                     onChange={(e) => setNewExpense({ ...newExpense, currency: e.target.value })}
@@ -3022,7 +3351,7 @@ export default function App() {
                 </div>
                 <div>
                   <label className="text-sm font-semibold mb-2 block">
-                    {translate("participants")} ({translate("cancel")} для всех):
+                    {translate("participants")} ({translate("split_between")}):
                   </label>
                   <div className="space-y-2 max-h-40 overflow-y-auto">
                     {tripUsers.map((u) => (
@@ -3141,7 +3470,7 @@ export default function App() {
                 </div>
                 <div className="flex gap-2 pt-4 border-t">
                   <Input
-                    placeholder="Напишите сообщение..."
+                    placeholder={translate("message")}
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -3156,7 +3485,7 @@ export default function App() {
                     onClick={sendMessage}
                     className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-12 px-6"
                   >
-                    Отправить
+                     {translate("send")}
                   </Button>
                 </div>
               </CardContent>
@@ -3184,52 +3513,59 @@ export default function App() {
     const maxDay = Math.max(0, ...Object.keys(activitiesByDay).map(Number));
 
     const copySummary = () => {
-      let text = `ПЛАН ПУТЕШЕСТВИЯ: ${activeTrip.name}\n\n`;
-      text += `Участники: ${tripUsers.map(u => u.name).join(", ")}\n`;
-      text += `Всего потрачено: ${getTotalExpenses().toFixed(2)} ₽\n\n`;
+      let text = `${translate("trip_plan")}: ${activeTrip.name}\n\n`;
+      text += `${translate("participants")}: ${tripUsers.map(u => u.name).join(", ")}\n`;
+      text += `${translate("total_spent")}: ${getTotalExpenses().toFixed(2)} ${activeTrip.currency || "RUB"}\n\n`;
       
       if ((activeTrip.places || []).length > 0) {
-        text += `МЕСТА НАЗНАЧЕНИЯ:\n`;
+        text += `${translate("places").toUpperCase()}:\n`;
         [...(activeTrip.places || [])].sort((a, b) => a.order - b.order).forEach((place, idx) => {
           text += `${idx + 1}. ${place.name}\n`;
-          text += `   Адрес: ${place.address}\n`;
-          if (place.googleMapsLink) text += `   Карта: ${place.googleMapsLink}\n`;
+          text += `   ${translate("address")}: ${place.address}\n`;
+          if (place.googleMapsLink) text += `   ${translate("map")}: ${place.googleMapsLink}\n`;
         });
         text += `\n`;
       }
 
       if ((activeTrip.transports || []).length > 0) {
-        text += `ТРАНСПОРТ:\n`;
+        text += `${translate("transport").toUpperCase()}:\n`;
         (activeTrip.transports || []).forEach((tr) => {
-          const typeNames = { plane: "Самолет", train: "Поезд", bus: "Автобус", car: "Автомобиль", ship: "Корабль", other: "Другое" };
+          const typeNames = { 
+            plane: translate("transport_plane"), 
+            train: translate("transport_train"), 
+            bus: translate("transport_bus"), 
+            car: translate("transport_car"), 
+            ship: translate("transport_ship"), 
+            other: translate("transport_other") 
+          };
           text += `• ${typeNames[tr.type]}: ${tr.from} → ${tr.to}\n`;
-          text += `  Отправление: ${tr.departureTime} из ${tr.departurePlace}\n`;
-          if (tr.arrivalTime) text += `  Прибытие: ${tr.arrivalTime} в ${tr.arrivalPlace}\n`;
+          text += `  ${translate("departure_time")}: ${tr.departureTime} ${translate("from_preposition")} ${tr.departurePlace}\n`;
+          if (tr.arrivalTime) text += `  ${translate("arrival_time")}: ${tr.arrivalTime} ${translate("in_preposition")} ${tr.arrivalPlace}\n`;
         });
         text += `\n`;
       }
 
       if ((activeTrip.accommodations || []).length > 0) {
-        text += `ЖИЛЬЁ:\n`;
+        text += `${translate("accommodation").toUpperCase()}:\n`;
         (activeTrip.accommodations || []).forEach((acc) => {
           text += `• ${acc.name}\n`;
-          text += `  Адрес: ${acc.address}\n`;
-          text += `  Заезд: ${acc.checkIn} | Выезд: ${acc.checkOut}\n`;
-          if (acc.bookingLink) text += `  Ссылка: ${acc.bookingLink}\n`;
+          text += `  ${translate("address")}: ${acc.address}\n`;
+          text += `  ${translate("check_in")}: ${acc.checkIn} | ${translate("check_out")}: ${acc.checkOut}\n`;
+          if (acc.bookingLink) text += `  ${translate("link")}: ${acc.bookingLink}\n`;
         });
         text += `\n`;
       }
 
       if (maxDay > 0) {
-        text += `ПЛАН ПО ДНЯМ:\n\n`;
+        text += `${translate("daily_plan").toUpperCase()}:\n\n`;
         for (let day = 1; day <= maxDay; day++) {
-          text += `ДЕНЬ ${day}:\n`;
+          text += `${translate("day").toUpperCase()} ${day}:\n`;
           const dayActivities = activitiesByDay[day] || [];
           dayActivities.sort((a, b) => a.time.localeCompare(b.time));
           dayActivities.forEach((activity) => {
             text += `  ${activity.time} - ${activity.name}\n`;
-            text += `    Адрес: ${activity.address}\n`;
-            if (activity.link) text += `    Ссылка: ${activity.link}\n`;
+            text += `    ${translate("address")}: ${activity.address}\n`;
+            if (activity.link) text += `    ${translate("link")}: ${activity.link}\n`;
             if (activity.description) text += `    ${activity.description}\n`;
           });
           text += `\n`;
@@ -3237,7 +3573,7 @@ export default function App() {
       }
 
       navigator.clipboard.writeText(text);
-      alert("Саммари скопировано в буфер обмена!");
+      alert(translate("link_copied"));
     };
 
     return (
@@ -3264,7 +3600,7 @@ export default function App() {
               onClick={copySummary}
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
             >
-              📋 Копировать
+              📋 {translate("copy_summary")}
             </Button>
           </motion.div>
 
@@ -3296,7 +3632,7 @@ export default function App() {
                 {/* Places */}
                 {(activeTrip.places || []).length > 0 && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-3">📍 Места назначения</h3>
+                    <h3 className="text-lg font-semibold mb-3">📍 {translate("places")}</h3>
                     <div className="space-y-2">
                       {[...(activeTrip.places || [])].sort((a, b) => a.order - b.order).map((place) => (
                         <div key={place.id} className="p-3 bg-gray-50 rounded">
@@ -3309,7 +3645,7 @@ export default function App() {
                               rel="noopener noreferrer"
                               className="text-blue-600 text-sm hover:underline"
                             >
-                              🗺️ Открыть в Google Maps
+                              🗺️ {translate("open_google_maps")}
                             </a>
                           )}
                         </div>
@@ -3321,7 +3657,7 @@ export default function App() {
                 {/* Transport */}
                 {(activeTrip.transports || []).length > 0 && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-3">🚗 Транспорт</h3>
+                    <h3 className="text-lg font-semibold mb-3">🚗 {translate("transport")}</h3>
                     <div className="space-y-2">
                       {(activeTrip.transports || []).map((tr) => {
                         const typeIcons = { plane: "✈️", train: "🚂", bus: "🚌", car: "🚗", ship: "🚢", other: "🚛" };
@@ -3342,7 +3678,7 @@ export default function App() {
                 {/* Accommodations */}
                 {(activeTrip.accommodations || []).length > 0 && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-3">🏠 Жильё</h3>
+                    <h3 className="text-lg font-semibold mb-3">🏠 {translate("accommodation")}</h3>
                     <div className="space-y-2">
                       {(activeTrip.accommodations || []).map((acc) => (
                         <div key={acc.id} className="p-3 bg-gray-50 rounded">
@@ -3358,7 +3694,7 @@ export default function App() {
                               rel="noopener noreferrer"
                               className="text-blue-600 text-sm hover:underline"
                             >
-                              🔗 Открыть на Booking.com
+                              🔗 {translate("open_booking")}
                             </a>
                           )}
                         </div>
@@ -3370,16 +3706,16 @@ export default function App() {
                 {/* Daily Plan */}
                 {maxDay > 0 && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-3">📅 План по дням</h3>
+                    <h3 className="text-lg font-semibold mb-3">📅 {translate("daily_plan")}</h3>
                     <div className="space-y-4">
                       {Array.from({ length: maxDay }, (_, i) => i + 1).map((day) => {
                         const dayActivities = activitiesByDay[day] || [];
                         dayActivities.sort((a: Activity, b: Activity) => a.time.localeCompare(b.time));
                         return (
                           <div key={day} className="border-l-4 border-blue-500 pl-4">
-                            <h4 className="font-semibold text-lg mb-2">День {day}</h4>
+                            <h4 className="font-semibold text-lg mb-2">{translate("day")} {day}</h4>
                             {dayActivities.length === 0 ? (
-                              <p className="text-gray-400 text-sm">Нет запланированных активностей</p>
+                              <p className="text-gray-400 text-sm">{translate("no_activities_day")}</p>
                             ) : (
                               <div className="space-y-3">
                                 {dayActivities.map((activity: Activity) => (
@@ -3396,7 +3732,7 @@ export default function App() {
                                         rel="noopener noreferrer"
                                         className="text-blue-600 text-sm hover:underline"
                                       >
-                                        🔗 Ссылка
+                                        🔗 {translate("link")}
                                       </a>
                                     )}
                                     {activity.description && (
