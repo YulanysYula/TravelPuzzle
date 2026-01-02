@@ -78,6 +78,7 @@ export const translations: Record<string, Record<Language, string>> = {
   "check_in": { ru: "Дата заезда", en: "Check-in Date" },
   "check_out": { ru: "Дата выезда", en: "Check-out Date" },
   "price": { ru: "Цена", en: "Price" },
+  "cost": { ru: "Стоимость", en: "Cost" },
   "open_booking": { ru: "Открыть на Booking.com", en: "Open on Booking.com" },
   "no_accommodation": { ru: "Нет добавленного жилья", en: "No accommodation added" },
   

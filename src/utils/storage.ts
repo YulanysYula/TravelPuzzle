@@ -70,6 +70,7 @@ export interface Activity {
   time: string; // Время активности
   status?: 'new' | 'possible' | 'rejected' | 'approved'; // Статус активности
   currency?: string;
+  price?: number;
   createdAt: Date;
 }
 

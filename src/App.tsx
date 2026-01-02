@@ -74,7 +74,7 @@ export default function App() {
   const [newPlace, setNewPlace] = useState({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR", price: "" });
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareLink, setShareLink] = useState("");
-  const [newActivity, setNewActivity] = useState({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR" });
+  const [newActivity, setNewActivity] = useState({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR", price: "" });
   const [newAccommodation, setNewAccommodation] = useState({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR" });
   const [newTransport, setNewTransport] = useState({ type: "plane" as "plane" | "train" | "bus" | "car" | "ship" | "other", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", imageUrl: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR", price: "" });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -384,7 +384,7 @@ export default function App() {
     const updated: Trip = {
       ...activeTrip,
       activities: ((activeTrip.activities as unknown as Activity[]) || []).map(a => 
-        a.id === editingItem.id ? { ...a, ...newActivity } : a
+        a.id === editingItem.id ? { ...a, ...newActivity, price: parseFloat(newActivity.price) || 0 } : a
       ),
       updatedAt: new Date(),
     };
@@ -393,7 +393,7 @@ export default function App() {
     saveTrip(withProgress);
     setEditActivityDialogOpen(false);
     setEditingItem(null);
-    setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new", currency: "EUR" });
+    setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new", currency: "EUR", price: "" });
     setFormErrors({});
   };
 
@@ -1017,6 +1017,8 @@ export default function App() {
       day: newActivity.day || 1,
       time: newActivity.time,
       status: newActivity.status || "new",
+      currency: newActivity.currency || "EUR",
+      price: parseFloat(newActivity.price) || 0,
       createdAt: new Date(),
     };
     
@@ -1029,7 +1031,7 @@ export default function App() {
     const withProgress = { ...updated, progress: calculateProgress(updated) };
     setActiveTrip(withProgress);
     saveTrip(withProgress);
-    setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new", currency: "EUR" });
+    setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new", currency: "EUR", price: "" });
     setFormErrors({});
     setActivityDialogOpen(false);
   };
@@ -1695,9 +1697,9 @@ export default function App() {
                                 🔗 {translate("link")}
                               </a>
                             )}
-                            {activity.price > 0 && (
+                            {((activity.price || 0) > 0) && (
                               <div className="text-sm font-semibold text-green-600 mt-2">
-                                {translate("price")}: {activity.price.toFixed(2)} {activity.currency || "EUR"}
+                                {translate("price")}: {(activity.price || 0).toFixed(2)} {activity.currency || "EUR"}
                               </div>
                             )}
                             <div className="text-sm font-medium mt-2 bg-white px-3 py-1 rounded-full inline-block text-orange-700">
@@ -1781,9 +1783,9 @@ export default function App() {
                                   🔗 {translate("link")}
                                 </a>
                               )}
-                              {activity.price > 0 && (
+                              {((activity.price || 0) > 0) && (
                                 <div className="text-sm font-semibold text-green-600 mt-2">
-                                  {translate("price")}: {activity.price.toFixed(2)} {activity.currency || "EUR"}
+                                  {translate("price")}: {(activity.price || 0).toFixed(2)} {activity.currency || "EUR"}
                                 </div>
                               )}
                             </div>
@@ -2229,16 +2231,19 @@ export default function App() {
                     />
                     {formErrors.amount && <p className="text-red-500 text-sm">{formErrors.amount}</p>}
                   </div>
-                  <select
-                    value={newExpense.currency || activeTrip?.currency || "RUB"}
-                    onChange={(e) => setNewExpense({ ...newExpense, currency: e.target.value })}
-                    className="h-12 px-3 border rounded-md"
-                  >
-                    <option value="RUB">₽ RUB</option>
-                    <option value="USD">$ USD</option>
-                    <option value="EUR">€ EUR</option>
-                    <option value="GBP">£ GBP</option>
-                  </select>
+                  <div className="space-y-1">
+                    <Label>{translate("currency")}</Label>
+                    <select
+                      value={newExpense.currency || activeTrip?.currency || "RUB"}
+                      onChange={(e) => setNewExpense({ ...newExpense, currency: e.target.value })}
+                      className="h-12 w-full px-3 border rounded-md"
+                    >
+                      <option value="RUB">₽ RUB</option>
+                      <option value="USD">$ USD</option>
+                      <option value="EUR">€ EUR</option>
+                      <option value="GBP">£ GBP</option>
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label className="text-sm font-semibold mb-2 block">{translate("category")}</label>
@@ -2327,15 +2332,24 @@ export default function App() {
                   />
                   {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
                 </div>
-                <select
-                  value={newPlace.currency}
-                  onChange={(e) => setNewPlace({ ...newPlace, currency: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md h-12"
-                >
-                  <option value="EUR">EUR</option>
-                  <option value="RUB">RUB</option>
-                  <option value="USD">USD</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={newPlace.currency}
+                    onChange={(e) => setNewPlace({ ...newPlace, currency: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md h-12"
+                  >
+                    <option value="EUR">EUR</option>
+                    <option value="RUB">RUB</option>
+                    <option value="USD">USD</option>
+                  </select>
+                  <Input
+                    type="number"
+                    placeholder={translate("cost")}
+                    value={newPlace.price}
+                    onChange={(e) => setNewPlace({ ...newPlace, price: e.target.value })}
+                    className="h-12"
+                  />
+                </div>
                 <Input
                   placeholder={translate("address")}
                   value={newPlace.address}
@@ -2423,15 +2437,24 @@ export default function App() {
                   />
                   {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
                 </div>
-                <select
-                  value={newActivity.currency}
-                  onChange={(e) => setNewActivity({ ...newActivity, currency: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md h-12"
-                >
-                  <option value="EUR">EUR</option>
-                  <option value="RUB">RUB</option>
-                  <option value="USD">USD</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={newActivity.currency}
+                    onChange={(e) => setNewActivity({ ...newActivity, currency: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md h-12"
+                  >
+                    <option value="EUR">EUR</option>
+                    <option value="RUB">RUB</option>
+                    <option value="USD">USD</option>
+                  </select>
+                  <Input
+                    type="number"
+                    placeholder={translate("cost")}
+                    value={newActivity.price}
+                    onChange={(e) => setNewActivity({ ...newActivity, price: e.target.value })}
+                    className="h-12"
+                  />
+                </div>
                 <Textarea
                   placeholder="Описание"
                   value={newActivity.description}
@@ -2701,15 +2724,24 @@ export default function App() {
                   onChange={(e) => setNewTransport({ ...newTransport, description: e.target.value })}
                   className="min-h-[80px]"
                 />
-                <select
-                  value={newTransport.currency}
-                  onChange={(e) => setNewTransport({ ...newTransport, currency: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md h-12"
-                >
-                  <option value="EUR">EUR</option>
-                  <option value="RUB">RUB</option>
-                  <option value="USD">USD</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={newTransport.currency}
+                    onChange={(e) => setNewTransport({ ...newTransport, currency: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md h-12"
+                  >
+                    <option value="EUR">EUR</option>
+                    <option value="RUB">RUB</option>
+                    <option value="USD">USD</option>
+                  </select>
+                  <Input
+                    type="number"
+                    placeholder={translate("cost")}
+                    value={newTransport.price}
+                    onChange={(e) => setNewTransport({ ...newTransport, price: e.target.value })}
+                    className="h-12"
+                  />
+                </div>
                 <div className="flex flex-col gap-2">
                   <div className="text-sm font-medium text-gray-700">{translate("image") || "Изображение"}</div>
                   <input
@@ -2882,15 +2914,24 @@ export default function App() {
                   />
                   {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
                 </div>
-                <select
-                  value={newPlace.currency}
-                  onChange={(e) => setNewPlace({ ...newPlace, currency: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md h-12"
-                >
-                  <option value="EUR">EUR</option>
-                  <option value="RUB">RUB</option>
-                  <option value="USD">USD</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={newPlace.currency}
+                    onChange={(e) => setNewPlace({ ...newPlace, currency: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md h-12"
+                  >
+                    <option value="EUR">EUR</option>
+                    <option value="RUB">RUB</option>
+                    <option value="USD">USD</option>
+                  </select>
+                  <Input
+                    type="number"
+                    placeholder={translate("cost")}
+                    value={newPlace.price}
+                    onChange={(e) => setNewPlace({ ...newPlace, price: e.target.value })}
+                    className="h-12"
+                  />
+                </div>
                 <Input
                   placeholder={translate("address")}
                   value={newPlace.address}
@@ -2960,15 +3001,24 @@ export default function App() {
                   />
                   {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
                 </div>
-                <select
-                  value={newActivity.currency}
-                  onChange={(e) => setNewActivity({ ...newActivity, currency: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md h-12"
-                >
-                  <option value="EUR">EUR</option>
-                  <option value="RUB">RUB</option>
-                  <option value="USD">USD</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={newActivity.currency}
+                    onChange={(e) => setNewActivity({ ...newActivity, currency: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md h-12"
+                  >
+                    <option value="EUR">EUR</option>
+                    <option value="RUB">RUB</option>
+                    <option value="USD">USD</option>
+                  </select>
+                  <Input
+                    type="number"
+                    placeholder={translate("cost")}
+                    value={newActivity.price}
+                    onChange={(e) => setNewActivity({ ...newActivity, price: e.target.value })}
+                    className="h-12"
+                  />
+                </div>
                 <Textarea
                   placeholder={translate("description")}
                   value={newActivity.description}
@@ -3162,15 +3212,24 @@ export default function App() {
                   <option value="ship">🚢 {translate("transport_ship")}</option>
                   <option value="other">🚛 {translate("transport_other")}</option>
                 </select>
-                <select
-                  value={newTransport.currency}
-                  onChange={(e) => setNewTransport({ ...newTransport, currency: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md h-12"
-                >
-                  <option value="EUR">EUR</option>
-                  <option value="RUB">RUB</option>
-                  <option value="USD">USD</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={newTransport.currency}
+                    onChange={(e) => setNewTransport({ ...newTransport, currency: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md h-12"
+                  >
+                    <option value="EUR">EUR</option>
+                    <option value="RUB">RUB</option>
+                    <option value="USD">USD</option>
+                  </select>
+                  <Input
+                    type="number"
+                    placeholder={translate("cost")}
+                    value={newTransport.price}
+                    onChange={(e) => setNewTransport({ ...newTransport, price: e.target.value })}
+                    className="h-12"
+                  />
+                </div>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
@@ -3271,7 +3330,7 @@ export default function App() {
                 <Button variant="outline" onClick={() => {
                   setEditTransportDialogOpen(false);
                   setEditingItem(null);
-                  setNewTransport({ type: "plane", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", imageUrl: "", status: "new", currency: "EUR" });
+                  setNewTransport({ type: "plane", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", imageUrl: "", status: "new", currency: "EUR", price: "" });
                 }}>
                   {translate("cancel")}
                 </Button>
@@ -3321,16 +3380,19 @@ export default function App() {
                     />
                     {formErrors.amount && <p className="text-red-500 text-sm">{formErrors.amount}</p>}
                   </div>
-                  <select
-                    value={newExpense.currency || activeTrip?.currency || "RUB"}
-                    onChange={(e) => setNewExpense({ ...newExpense, currency: e.target.value })}
-                    className="h-12 px-3 border rounded-md"
-                  >
-                    <option value="RUB">₽ RUB</option>
-                    <option value="USD">$ USD</option>
-                    <option value="EUR">€ EUR</option>
-                    <option value="GBP">£ GBP</option>
-                  </select>
+                  <div className="space-y-1">
+                    <Label>{translate("currency")}</Label>
+                    <select
+                      value={newExpense.currency || activeTrip?.currency || "RUB"}
+                      onChange={(e) => setNewExpense({ ...newExpense, currency: e.target.value })}
+                      className="h-12 w-full px-3 border rounded-md"
+                    >
+                      <option value="RUB">₽ RUB</option>
+                      <option value="USD">$ USD</option>
+                      <option value="EUR">€ EUR</option>
+                      <option value="GBP">£ GBP</option>
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label className="text-sm font-semibold mb-2 block">{translate("category")}</label>
