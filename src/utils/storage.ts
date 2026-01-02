@@ -51,6 +51,7 @@ export interface Place {
   googleMapsLink: string;
   order: number; // Порядок в путешествии
   status?: 'new' | 'possible' | 'rejected' | 'approved'; // Статус места
+  currency?: string;
   createdAt: Date;
 }
 
@@ -67,6 +68,7 @@ export interface Activity {
   day: number; // День путешествия
   time: string; // Время активности
   status?: 'new' | 'possible' | 'rejected' | 'approved'; // Статус активности
+  currency?: string;
   createdAt: Date;
 }
 
@@ -81,6 +83,7 @@ export interface Accommodation {
   checkOut: string; // Дата выезда
   price: number;
   status?: 'new' | 'possible' | 'rejected' | 'approved'; // Статус жилья
+  currency?: string;
   createdAt: Date;
 }
 
@@ -95,7 +98,9 @@ export interface Transport {
   arrivalPlace: string;
   passengers: number;
   description: string;
+  imageUrl?: string; // base64 or URL
   status?: 'new' | 'possible' | 'rejected' | 'approved'; // Статус транспорта
+  currency?: string;
   createdAt: Date;
 }
 

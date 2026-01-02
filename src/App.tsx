@@ -30,7 +30,7 @@ import {
 import { getTripsForUserFromSupabase } from '@/utils/supabase';
 import { t, type Language } from "@/utils/translations";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -69,12 +69,18 @@ export default function App() {
   const [editExpenseDialogOpen, setEditExpenseDialogOpen] = useState(false);
   const [editTripNameDialogOpen, setEditTripNameDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [newPlace, setNewPlace] = useState({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new" as "new" | "possible" | "rejected" | "approved" });
+  const [newPlace, setNewPlace] = useState({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR" });
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareLink, setShareLink] = useState("");
-  const [newActivity, setNewActivity] = useState({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new" as "new" | "possible" | "rejected" | "approved" });
-  const [newAccommodation, setNewAccommodation] = useState({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new" as "new" | "possible" | "rejected" | "approved" });
-  const [newTransport, setNewTransport] = useState({ type: "plane" as "plane" | "train" | "bus" | "car" | "ship" | "other", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", status: "new" as "new" | "possible" | "rejected" | "approved" });
+  const [newActivity, setNewActivity] = useState({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR" });
+  const [newAccommodation, setNewAccommodation] = useState({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR" });
+  const [newTransport, setNewTransport] = useState({ type: "plane" as "plane" | "train" | "bus" | "car" | "ship" | "other", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", imageUrl: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR" });
+
+  // Refs for file inputs
+  const placeFileInputRef = useRef<HTMLInputElement>(null);
+  const activityFileInputRef = useRef<HTMLInputElement>(null);
+  const accommodationFileInputRef = useRef<HTMLInputElement>(null);
+  const transportFileInputRef = useRef<HTMLInputElement>(null);
 
   // Load user and trips on mount
   useEffect(() => {
@@ -276,13 +282,30 @@ export default function App() {
       activities: [],
       accommodations: [],
       transports: [],
-      currency: "RUB",
+      currency: "EUR",
     };
     
-    saveTrip(trip);
-    setTrips([...trips, trip]);
-    setActiveTrip(trip);
+    const tripWithProgress = { ...trip, progress: calculateProgress(trip) };
+    saveTrip(tripWithProgress);
+    setTrips([...trips, tripWithProgress]);
+    setActiveTrip(tripWithProgress);
     setView("plan");
+  };
+
+  // Logic for trip progress
+  const calculateProgress = (trip: Trip): number => {
+    let progress = 0;
+    const hasApprovedPlace = (trip.places || []).some(p => p.status === "approved");
+    const hasApprovedActivity = (trip.activities || []).some(a => a.approved || a.status === "approved");
+    const hasApprovedAccommodation = (trip.accommodations || []).some(acc => acc.status === "approved");
+    const hasApprovedTransport = (trip.transports || []).some(tr => tr.status === "approved");
+
+    if (hasApprovedPlace) progress += 25;
+    if (hasApprovedActivity) progress += 25;
+    if (hasApprovedAccommodation) progress += 25;
+    if (hasApprovedTransport) progress += 25;
+
+    return progress;
   };
 
   // Check if trip is in the past
@@ -317,11 +340,12 @@ export default function App() {
       ),
       updatedAt: new Date(),
     };
-    setActiveTrip(updated);
-    saveTrip(updated);
+    const withProgress = { ...updated, progress: calculateProgress(updated) };
+    setActiveTrip(withProgress);
+    saveTrip(withProgress);
     setEditPlaceDialogOpen(false);
     setEditingItem(null);
-    setNewPlace({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new" });
+    setNewPlace({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new", currency: "EUR" });
   };
 
   // Update activity
@@ -334,11 +358,12 @@ export default function App() {
       ),
       updatedAt: new Date(),
     };
-    setActiveTrip(updated);
-    saveTrip(updated);
+    const withProgress = { ...updated, progress: calculateProgress(updated) };
+    setActiveTrip(withProgress);
+    saveTrip(withProgress);
     setEditActivityDialogOpen(false);
     setEditingItem(null);
-    setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new" });
+    setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new", currency: "EUR" });
   };
 
   // Update accommodation
@@ -351,11 +376,12 @@ export default function App() {
       ),
       updatedAt: new Date(),
     };
-    setActiveTrip(updated);
-    saveTrip(updated);
+    const withProgress = { ...updated, progress: calculateProgress(updated) };
+    setActiveTrip(withProgress);
+    saveTrip(withProgress);
     setEditAccommodationDialogOpen(false);
     setEditingItem(null);
-    setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new" });
+    setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new", currency: "EUR" });
   };
 
   // Update transport
@@ -368,11 +394,12 @@ export default function App() {
       ),
       updatedAt: new Date(),
     };
-    setActiveTrip(updated);
-    saveTrip(updated);
+    const withProgress = { ...updated, progress: calculateProgress(updated) };
+    setActiveTrip(withProgress);
+    saveTrip(withProgress);
     setEditTransportDialogOpen(false);
     setEditingItem(null);
-    setNewTransport({ type: "plane", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", status: "new" });
+    setNewTransport({ type: "plane", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", imageUrl: "", status: "new", currency: "EUR" });
   };
 
   // Update expense
@@ -415,15 +442,16 @@ export default function App() {
     if (type === "place") {
       updated.places = (activeTrip.places || []).map(p => p.id === id ? { ...p, status } : p);
     } else if (type === "activity") {
-      updated.activities = ((activeTrip.activities as unknown as Activity[]) || []).map(a => a.id === id ? { ...a, status } : a);
+      updated.activities = ((activeTrip.activities as unknown as Activity[]) || []).map(a => a.id === id ? { ...a, status, approved: status === "approved" } : a);
     } else if (type === "accommodation") {
       updated.accommodations = (activeTrip.accommodations || []).map(acc => acc.id === id ? { ...acc, status } : acc);
     } else if (type === "transport") {
       updated.transports = (activeTrip.transports || []).map(tr => tr.id === id ? { ...tr, status } : tr);
     }
     
-    setActiveTrip(updated);
-    saveTrip(updated);
+    const withProgress = { ...updated, progress: calculateProgress(updated) };
+    setActiveTrip(withProgress);
+    saveTrip(withProgress);
   };
 
   // Handle trip cover image upload
@@ -819,7 +847,7 @@ export default function App() {
     
     setActiveTrip(updated);
     saveTrip(updated);
-    setNewPlace({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new" });
+    setNewPlace({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new", currency: "EUR" });
     setPlaceDialogOpen(false);
   };
 
@@ -875,7 +903,7 @@ export default function App() {
     
     setActiveTrip(updated);
     saveTrip(updated);
-    setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new" });
+    setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new", currency: "EUR" });
     setActivityDialogOpen(false);
   };
 
@@ -924,7 +952,7 @@ export default function App() {
     
     setActiveTrip(updated);
     saveTrip(updated);
-    setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new" });
+    setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new", currency: "EUR" });
     setAccommodationDialogOpen(false);
   };
 
@@ -965,6 +993,7 @@ export default function App() {
       arrivalPlace: newTransport.arrivalPlace,
       passengers: newTransport.passengers,
       description: newTransport.description,
+      imageUrl: newTransport.imageUrl,
       status: newTransport.status || "new",
       createdAt: new Date(),
     };
@@ -975,10 +1004,33 @@ export default function App() {
       updatedAt: new Date(),
     };
     
-    setActiveTrip(updated);
-    saveTrip(updated);
-    setNewTransport({ type: "plane", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", status: "new" });
+    const withProgress = { ...updated, progress: calculateProgress(updated) };
+    setActiveTrip(withProgress);
+    saveTrip(withProgress);
+    setNewTransport({ type: "plane", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", imageUrl: "", status: "new", currency: "EUR" });
     setTransportDialogOpen(false);
+  };
+
+  const handleTransportImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 5 * 1024 * 1024) {
+      alert(translate("file_too_large"));
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onerror = () => {
+      alert(translate("error_loading_image"));
+    };
+    reader.onloadend = () => {
+      if (reader.result && typeof reader.result === 'string') {
+        setNewTransport(prev => ({ ...prev, imageUrl: reader.result as string }));
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   if (view === "plan" && activeTrip && user) {
@@ -1187,7 +1239,9 @@ export default function App() {
                             </a>
                           )}
                         </div>
-                        <div className="text-sm font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded-full">#{place.order}</div>
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="text-sm font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded-full">#{place.order}</div>
+                        </div>
                       </div>
                       {place.imageUrl && (
                         <img
@@ -1206,6 +1260,7 @@ export default function App() {
                               imageUrl: place.imageUrl,
                               googleMapsLink: place.googleMapsLink,
                               status: (place.status || "new") as "new" | "possible" | "rejected" | "approved",
+                              currency: place.currency || "EUR",
                             });
                             setEditPlaceDialogOpen(true);
                           }}
@@ -1217,13 +1272,16 @@ export default function App() {
                         </Button>
                         <Button
                           onClick={() => {
-                            const updated = {
-                              ...activeTrip,
-                              places: (activeTrip.places || []).filter(p => p.id !== place.id),
-                              updatedAt: new Date(),
-                            };
-                            setActiveTrip(updated);
-                            saveTrip(updated);
+                            if (window.confirm(language === "ru" ? "Удалить это место?" : "Delete this place?")) {
+                              const updated = {
+                                ...activeTrip,
+                                places: (activeTrip.places || []).filter(p => p.id !== place.id),
+                                updatedAt: new Date(),
+                              };
+                              const withProgress = { ...updated, progress: calculateProgress(updated) };
+                              setActiveTrip(withProgress);
+                              saveTrip(withProgress);
+                            }
                           }}
                           variant="outline"
                           size="sm"
@@ -1462,6 +1520,49 @@ export default function App() {
                             className="w-full h-48 object-cover rounded-lg mt-2 shadow-md"
                           />
                         )}
+                        <div className="flex gap-2 mt-3">
+                        <Button
+                            onClick={() => {
+                              setEditingItem(activity);
+                              setNewActivity({
+                                name: activity.name,
+                                description: activity.description,
+                                imageUrl: activity.imageUrl,
+                                link: activity.link,
+                                address: activity.address,
+                                day: activity.day,
+                                time: activity.time,
+                                status: (activity.status || "approved") as any,
+                                currency: activity.currency || "EUR",
+                              });
+                              setEditActivityDialogOpen(true);
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                          >
+                            ✏️ {translate("edit")}
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              if (window.confirm(language === "ru" ? "Удалить эту активность?" : "Delete this activity?")) {
+                                const updated = {
+                                  ...activeTrip,
+                                  activities: ((activeTrip.activities as unknown as Activity[]) || []).filter((a: Activity) => a.id !== activity.id),
+                                  updatedAt: new Date(),
+                                };
+                                const withProgress = { ...updated, progress: calculateProgress(updated) };
+                                setActiveTrip(withProgress);
+                                saveTrip(withProgress);
+                              }
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 border-red-300 hover:bg-red-50"
+                          >
+                            {translate("delete")}
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   {[...((activeTrip.activities as unknown as Activity[]) || [])]
@@ -1533,6 +1634,7 @@ export default function App() {
                                   day: activity.day,
                                   time: activity.time,
                                   status: (activity.status || "new") as "new" | "possible" | "rejected" | "approved",
+                                  currency: activity.currency || "EUR",
                                 });
                                 setEditActivityDialogOpen(true);
                               }}
@@ -1565,13 +1667,16 @@ export default function App() {
                             )}
                             <Button
                               onClick={async () => {
-                                const updated = {
-                                  ...activeTrip,
-                                  activities: ((activeTrip.activities as unknown as Activity[]) || []).filter((a: Activity) => a.id !== activity.id),
-                                  updatedAt: new Date(),
-                                };
-                                setActiveTrip(updated);
-                                await saveTrip(updated);
+                                if (window.confirm(language === "ru" ? "Удалить эту активность?" : "Delete this activity?")) {
+                                  const updated = {
+                                    ...activeTrip,
+                                    activities: ((activeTrip.activities as unknown as Activity[]) || []).filter((a: Activity) => a.id !== activity.id),
+                                    updatedAt: new Date(),
+                                  };
+                                  const withProgress = { ...updated, progress: calculateProgress(updated) };
+                                  setActiveTrip(withProgress);
+                                  await saveTrip(withProgress);
+                                }
                               }}
                               variant="outline"
                               size="sm"
@@ -1664,6 +1769,7 @@ export default function App() {
                               checkOut: acc.checkOut,
                               price: acc.price.toString(),
                               status: (acc.status || "new") as "new" | "possible" | "rejected" | "approved",
+                              currency: acc.currency || "EUR",
                             });
                             setEditAccommodationDialogOpen(true);
                           }}
@@ -1675,13 +1781,16 @@ export default function App() {
                         </Button>
                         <Button
                           onClick={() => {
-                            const updated = {
-                              ...activeTrip,
-                              accommodations: (activeTrip.accommodations || []).filter(a => a.id !== acc.id),
-                              updatedAt: new Date(),
-                            };
-                            setActiveTrip(updated);
-                            saveTrip(updated);
+                            if (window.confirm(language === "ru" ? "Удалить это жилье?" : "Delete this accommodation?")) {
+                              const updated = {
+                                ...activeTrip,
+                                accommodations: (activeTrip.accommodations || []).filter(a => a.id !== acc.id),
+                                updatedAt: new Date(),
+                              };
+                              const withProgress = { ...updated, progress: calculateProgress(updated) };
+                              setActiveTrip(withProgress);
+                              saveTrip(withProgress);
+                            }
                           }}
                           variant="outline"
                           size="sm"
@@ -1773,7 +1882,9 @@ export default function App() {
                                 arrivalPlace: tr.arrivalPlace,
                                 passengers: tr.passengers,
                                 description: tr.description,
+                                imageUrl: tr.imageUrl || "",
                                 status: (tr.status || "new") as "new" | "possible" | "rejected" | "approved",
+                                currency: tr.currency || "EUR",
                               });
                               setEditTransportDialogOpen(true);
                             }}
@@ -1785,13 +1896,16 @@ export default function App() {
                           </Button>
                           <Button
                             onClick={() => {
-                              const updated = {
-                                ...activeTrip,
-                                transports: (activeTrip.transports || []).filter(t => t.id !== tr.id),
-                                updatedAt: new Date(),
-                              };
-                              setActiveTrip(updated);
-                              saveTrip(updated);
+                              if (window.confirm(language === "ru" ? "Удалить этот транспорт?" : "Delete this transport?")) {
+                                const updated = {
+                                  ...activeTrip,
+                                  transports: (activeTrip.transports || []).filter(t => t.id !== tr.id),
+                                  updatedAt: new Date(),
+                                };
+                                const withProgress = { ...updated, progress: calculateProgress(updated) };
+                                setActiveTrip(withProgress);
+                                saveTrip(withProgress);
+                              }
                             }}
                             variant="outline"
                             size="sm"
@@ -2002,6 +2116,15 @@ export default function App() {
                   onChange={(e) => setNewPlace({ ...newPlace, name: e.target.value })}
                   className="h-12"
                 />
+                <select
+                  value={newPlace.currency}
+                  onChange={(e) => setNewPlace({ ...newPlace, currency: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-md h-12"
+                >
+                  <option value="EUR">EUR</option>
+                  <option value="RUB">RUB</option>
+                  <option value="USD">USD</option>
+                </select>
                 <Input
                   placeholder={translate("address")}
                   value={newPlace.address}
@@ -2029,17 +2152,23 @@ export default function App() {
                     <option value="approved">{translate("status_approved")}</option>
                   </select>
                 </div>
-                <label className="cursor-pointer">
+                <div>
                   <input
                     type="file"
                     accept="image/*"
                     className="hidden"
+                    ref={placeFileInputRef}
                     onChange={handlePlaceImageUpload}
                   />
-                  <Button variant="outline" className="w-full">
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => placeFileInputRef.current?.click()}
+                  >
                     {newPlace.imageUrl ? translate("image_uploaded") : translate("upload_image")}
                   </Button>
-                </label>
+                </div>
                 {newPlace.imageUrl && (
                   <img src={newPlace.imageUrl} alt="Preview" className="w-full h-32 object-cover rounded" />
                 )}
@@ -2074,6 +2203,15 @@ export default function App() {
                   onChange={(e) => setNewActivity({ ...newActivity, name: e.target.value })}
                   className="h-12"
                 />
+                <select
+                  value={newActivity.currency}
+                  onChange={(e) => setNewActivity({ ...newActivity, currency: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-md h-12"
+                >
+                  <option value="EUR">EUR</option>
+                  <option value="RUB">RUB</option>
+                  <option value="USD">USD</option>
+                </select>
                 <Textarea
                   placeholder="Описание"
                   value={newActivity.description}
@@ -2107,17 +2245,23 @@ export default function App() {
                     className="h-12"
                   />
                 </div>
-                <label className="cursor-pointer">
+                <div>
                   <input
                     type="file"
                     accept="image/*"
                     className="hidden"
+                    ref={activityFileInputRef}
                     onChange={handleActivityImageUpload}
                   />
-                  <Button variant="outline" className="w-full">
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => activityFileInputRef.current?.click()}
+                  >
                     {newActivity.imageUrl ? translate("image_uploaded") : translate("upload_image")}
                   </Button>
-                </label>
+                </div>
                 {newActivity.imageUrl && (
                   <img src={newActivity.imageUrl} alt="Preview" className="w-full h-32 object-cover rounded" />
                 )}
@@ -2188,22 +2332,37 @@ export default function App() {
                 </div>
                 <Input
                   type="number"
-                  placeholder="Цена (₽)"
+                  placeholder="Цена"
                   value={newAccommodation.price}
                   onChange={(e) => setNewAccommodation({ ...newAccommodation, price: e.target.value })}
                   className="h-12"
                 />
-                <label className="cursor-pointer">
+                <select
+                  value={newAccommodation.currency}
+                  onChange={(e) => setNewAccommodation({ ...newAccommodation, currency: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-md h-12"
+                >
+                  <option value="EUR">EUR</option>
+                  <option value="RUB">RUB</option>
+                  <option value="USD">USD</option>
+                </select>
+                <div>
                   <input
                     type="file"
                     accept="image/*"
                     className="hidden"
+                    ref={accommodationFileInputRef}
                     onChange={handleAccommodationImageUpload}
                   />
-                  <Button variant="outline" className="w-full">
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => accommodationFileInputRef.current?.click()}
+                  >
                     {newAccommodation.imageUrl ? translate("image_uploaded") : translate("upload_image")}
                   </Button>
-                </label>
+                </div>
                 {newAccommodation.imageUrl && (
                   <img src={newAccommodation.imageUrl} alt="Preview" className="w-full h-32 object-cover rounded" />
                 )}
@@ -2295,6 +2454,40 @@ export default function App() {
                   onChange={(e) => setNewTransport({ ...newTransport, description: e.target.value })}
                   className="min-h-[80px]"
                 />
+                <select
+                  value={newTransport.currency}
+                  onChange={(e) => setNewTransport({ ...newTransport, currency: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-md h-12"
+                >
+                  <option value="EUR">EUR</option>
+                  <option value="RUB">RUB</option>
+                  <option value="USD">USD</option>
+                </select>
+                <div className="flex flex-col gap-2">
+                  <div className="text-sm font-medium text-gray-700">{translate("image") || "Изображение"}</div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    ref={transportFileInputRef}
+                    onChange={handleTransportImageUpload}
+                  />
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => transportFileInputRef.current?.click()}
+                  >
+                    {newTransport.imageUrl ? translate("image_uploaded") : translate("upload_image")}
+                  </Button>
+                  {newTransport.imageUrl && (
+                    <img
+                      src={newTransport.imageUrl}
+                      alt="Transport"
+                      className="w-full h-32 object-cover rounded-md mt-2"
+                    />
+                  )}
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setTransportDialogOpen(false)}>
@@ -2385,6 +2578,75 @@ export default function App() {
             </DialogContent>
           </Dialog>
 
+          {/* Edit Place Dialog */}
+          <Dialog open={editPlaceDialogOpen} onOpenChange={setEditPlaceDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{translate("edit")} {translate("place")}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  placeholder={translate("place_name")}
+                  value={newPlace.name}
+                  onChange={(e) => setNewPlace({ ...newPlace, name: e.target.value })}
+                  className="h-12"
+                />
+                <select
+                  value={newPlace.currency}
+                  onChange={(e) => setNewPlace({ ...newPlace, currency: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-md h-12"
+                >
+                  <option value="EUR">EUR</option>
+                  <option value="RUB">RUB</option>
+                  <option value="USD">USD</option>
+                </select>
+                <Input
+                  placeholder={translate("address")}
+                  value={newPlace.address}
+                  onChange={(e) => setNewPlace({ ...newPlace, address: e.target.value })}
+                  className="h-12"
+                />
+                <Input
+                  placeholder={translate("google_maps_link")}
+                  value={newPlace.googleMapsLink}
+                  onChange={(e) => setNewPlace({ ...newPlace, googleMapsLink: e.target.value })}
+                  className="h-12"
+                />
+                <div className="flex flex-col gap-2">
+                  <div className="text-sm font-medium text-gray-700">{translate("image")}</div>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePlaceImageUpload}
+                    className="h-12"
+                  />
+                  {newPlace.imageUrl && (
+                    <img
+                      src={newPlace.imageUrl}
+                      alt="Place"
+                      className="w-full h-32 object-cover rounded-md mt-2"
+                    />
+                  )}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => {
+                  setEditPlaceDialogOpen(false);
+                  setEditingItem(null);
+                  setNewPlace({ name: "", address: "", imageUrl: "", googleMapsLink: "", status: "new", currency: "EUR" });
+                }}>
+                  {translate("cancel")}
+                </Button>
+                <Button
+                  onClick={updatePlace}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                >
+                  {translate("save")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Edit Activity Dialog */}
           <Dialog open={editActivityDialogOpen} onOpenChange={setEditActivityDialogOpen}>
             <DialogContent>
@@ -2398,6 +2660,15 @@ export default function App() {
                   onChange={(e) => setNewActivity({ ...newActivity, name: e.target.value })}
                   className="h-12"
                 />
+                <select
+                  value={newActivity.currency}
+                  onChange={(e) => setNewActivity({ ...newActivity, currency: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-md h-12"
+                >
+                  <option value="EUR">EUR</option>
+                  <option value="RUB">RUB</option>
+                  <option value="USD">USD</option>
+                </select>
                 <Textarea
                   placeholder={translate("description")}
                   value={newActivity.description}
@@ -2450,7 +2721,7 @@ export default function App() {
                 <Button variant="outline" onClick={() => {
                   setEditActivityDialogOpen(false);
                   setEditingItem(null);
-                  setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new" });
+                  setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new", currency: "EUR" });
                 }}>
                   {translate("cancel")}
                 </Button>
@@ -2477,6 +2748,15 @@ export default function App() {
                   onChange={(e) => setNewAccommodation({ ...newAccommodation, name: e.target.value })}
                   className="h-12"
                 />
+                <select
+                  value={newAccommodation.currency}
+                  onChange={(e) => setNewAccommodation({ ...newAccommodation, currency: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-md h-12"
+                >
+                  <option value="EUR">EUR</option>
+                  <option value="RUB">RUB</option>
+                  <option value="USD">USD</option>
+                </select>
                 <Input
                   placeholder={translate("address")}
                   value={newAccommodation.address}
@@ -2537,7 +2817,7 @@ export default function App() {
                 <Button variant="outline" onClick={() => {
                   setEditAccommodationDialogOpen(false);
                   setEditingItem(null);
-                  setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new" });
+                  setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new", currency: "EUR" });
                 }}>
                   {translate("cancel")}
                 </Button>
@@ -2569,6 +2849,15 @@ export default function App() {
                   <option value="car">🚗 {translate("transport")}</option>
                   <option value="ship">🚢 {translate("transport")}</option>
                   <option value="other">🚛 {translate("category_other")}</option>
+                </select>
+                <select
+                  value={newTransport.currency}
+                  onChange={(e) => setNewTransport({ ...newTransport, currency: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-md h-12"
+                >
+                  <option value="EUR">EUR</option>
+                  <option value="RUB">RUB</option>
+                  <option value="USD">USD</option>
                 </select>
                 <div className="grid grid-cols-2 gap-2">
                   <Input
@@ -2625,12 +2914,38 @@ export default function App() {
                   onChange={(e) => setNewTransport({ ...newTransport, description: e.target.value })}
                   className="min-h-[80px]"
                 />
+                <select
+                  value={newTransport.status}
+                  onChange={(e) => setNewTransport({ ...newTransport, status: e.target.value as any })}
+                  className="w-full px-3 py-2 border rounded-md h-12"
+                >
+                  <option value="new">{translate("status_new") || "Новое"}</option>
+                  <option value="possible">{translate("status_possible") || "Возможно"}</option>
+                  <option value="rejected">{translate("status_rejected") || "Отклонено"}</option>
+                  <option value="approved">{translate("status_approved") || "Утверждено"}</option>
+                </select>
+                <div className="flex flex-col gap-2">
+                  <div className="text-sm font-medium text-gray-700">{translate("image")}</div>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleTransportImageUpload}
+                    className="h-12"
+                  />
+                  {newTransport.imageUrl && (
+                    <img
+                      src={newTransport.imageUrl}
+                      alt="Transport"
+                      className="w-full h-32 object-cover rounded-md mt-2"
+                    />
+                  )}
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => {
                   setEditTransportDialogOpen(false);
                   setEditingItem(null);
-                  setNewTransport({ type: "plane", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", status: "new" });
+                  setNewTransport({ type: "plane", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", imageUrl: "", status: "new", currency: "EUR" });
                 }}>
                   {translate("cancel")}
                 </Button>
