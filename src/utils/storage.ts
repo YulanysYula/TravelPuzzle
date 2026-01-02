@@ -52,6 +52,7 @@ export interface Place {
   order: number; // Порядок в путешествии
   status?: 'new' | 'possible' | 'rejected' | 'approved'; // Статус места
   currency?: string;
+  price?: number;
   createdAt: Date;
 }
 
@@ -101,6 +102,7 @@ export interface Transport {
   imageUrl?: string; // base64 or URL
   status?: 'new' | 'possible' | 'rejected' | 'approved'; // Статус транспорта
   currency?: string;
+  price?: number;
   createdAt: Date;
 }
 
