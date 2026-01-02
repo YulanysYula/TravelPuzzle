@@ -1,3 +1,4 @@
+import { LanguageSelector } from "@/components/LanguageSelector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -49,6 +50,11 @@ export default function App() {
     const saved = localStorage.getItem("app_language");
     return (saved === "en" || saved === "ru") ? saved as Language : "ru";
   });
+
+  // Persist language changes
+  useEffect(() => {
+    localStorage.setItem("app_language", language);
+  }, [language]);
   
   // Translation helper
   const translate = (key: string): string => t(key, language);
@@ -617,254 +623,6 @@ export default function App() {
     saveTrip(updated);
   };
 
-  if (view === "login" || view === "register") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Card className="w-full max-w-md shadow-2xl border-0">
-            <CardContent className="p-8 space-y-6">
-              <div className="text-center space-y-2">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2, type: "spring" }}
-                  className="text-5xl mb-4"
-                >
-                  ✈️
-                </motion.div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  {translate("trip_planner")}
-                </h1>
-                <p className="text-gray-500">
-                  {view === "login" ? translate("login_to_account") : translate("create_new_account")}
-                </p>
-              </div>
-                  <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email" required>{translate("email") || "Email"}</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      error={!!formErrors.email}
-                      className="h-12 text-lg"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && view === "login") {
-                          handleLogin(email, password);
-                        }
-                      }}
-                      autoFocus
-                    />
-                    {formErrors.email && <p className="text-red-500 text-sm mt-1">{formErrors.email}</p>}
-                  </div>
-                  {view === "register" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="name" required>{translate("name")}</Label>
-                      <Input
-                        id="name"
-                        placeholder={translate("name")}
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        error={!!formErrors.name}
-                        className="h-12 text-lg"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            handleRegister(email, name, password);
-                          }
-                        }}
-                      />
-                      {formErrors.name && <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>}
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    <Label htmlFor="password" required>{translate("password")}</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder={translate("password")}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      error={!!formErrors.password}
-                      className="h-12 text-lg"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          if (view === "login") {
-                            handleLogin(email, password);
-                          } else {
-                            handleRegister(email, name, password);
-                          }
-                        }
-                      }}
-                    />
-                    {formErrors.password && <p className="text-red-500 text-sm mt-1">{formErrors.password}</p>}
-                  </div>
-                  {formErrors.auth && <p className="text-red-500 text-sm text-center font-semibold">{formErrors.auth}</p>}
-                <Button
-                  onClick={() => {
-                    if (view === "login") {
-                      handleLogin(email, password);
-                    } else {
-                      handleRegister(email, name, password);
-                    }
-                  }}
-                  className="w-full h-12 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
-                  {view === "login" ? translate("enter") : translate("register")}
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setView(view === "login" ? "register" : "login");
-                    // Clear form when switching
-                    setEmail("");
-                    setName("");
-                    setPassword("");
-                    setFormErrors({});
-                  }}
-                  className="w-full"
-                >
-                  {view === "login"
-                    ? translate("no_account") + " " + translate("register")
-                    : translate("already_have_account") + " " + translate("enter")}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (view === "dashboard") {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 pt-20">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="max-w-7xl mx-auto"
-        >
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                {translate("my_trips")}, {user?.name}! 👋
-              </h1>
-              <p className="text-gray-600 mt-2">{translate("my_trips")}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value as Language)}
-                className="px-3 py-2 border rounded-md text-sm bg-white"
-              >
-                <option value="ru">🇷🇺 {translate("russian")}</option>
-                <option value="en">🇬🇧 {translate("english")}</option>
-              </select>
-              <Button variant="outline" onClick={handleLogout}>
-                {translate("logout")}
-              </Button>
-            </div>
-          </div>
-
-          {trips.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="text-center py-16"
-            >
-              <div className="text-6xl mb-4">🗺️</div>
-              <h2 className="text-2xl font-semibold text-gray-700 mb-2">
-                У вас пока нет поездок
-              </h2>
-              <p className="text-gray-500 mb-6">
-                Создайте первую поездку, чтобы начать планирование
-              </p>
-              <Button
-                onClick={createTrip}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-lg px-8 py-6"
-                size="lg"
-              >
-                + {translate("create_first_trip")}
-              </Button>
-            </motion.div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <AnimatePresence>
-                {trips.map((trip, index) => (
-                  <motion.div
-                    key={trip.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    whileHover={{ scale: 1.03, y: -5 }}
-                    className="cursor-pointer"
-                  >
-                    <Card
-                      onClick={() => {
-                        setActiveTrip(trip);
-                        setView("plan");
-                      }}
-                      className="h-full shadow-lg hover:shadow-xl transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm relative overflow-hidden"
-                    >
-                      <CardContent className="p-6 space-y-4 relative z-10">
-                        <div className="flex items-start justify-between">
-                          <h2 className="text-xl font-bold text-gray-800">{trip.name}</h2>
-                          <span className="text-2xl">✈️</span>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600">{translate("general_progress")}</span>
-                            <span className="font-semibold text-blue-600">{trip.progress}%</span>
-                          </div>
-                          <Progress value={trip.progress} className="h-2" />
-                        </div>
-                        {trip.place && (
-                          <p className="text-sm text-gray-500 flex items-center gap-1">
-                            📍 {trip.place}
-                          </p>
-                        )}
-                        <div className="pt-2 border-t">
-                          <p className="text-xs text-gray-400">
-                            {translate("participants_count")}: {trip.users.length}
-                          </p>
-                          {trip.createdBy === user?.id && (
-                            <p className="text-xs text-blue-500 mt-1">{translate("creator")}</p>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileHover={{ scale: 1.05 }}
-                className="cursor-pointer"
-              >
-                <Card
-                  onClick={createTrip}
-                  className="h-full border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors bg-white/50 backdrop-blur-sm flex items-center justify-center"
-                >
-                  <CardContent className="p-6 w-full text-center">
-                    <div className="text-4xl mb-3">➕</div>
-                    <p className="text-gray-600 font-medium">{translate("create_trip")}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </div>
-          )}
-        </motion.div>
-      </div>
-    );
-  }
-
-  // Expense handling
   const addExpense = () => {
     if (!activeTrip || !user) return;
     
@@ -1185,10 +943,251 @@ export default function App() {
     e.target.value = '';
   };
 
-  if (view === "plan" && activeTrip && user) {
-    // tripUsers is already fetched in useEffect
+  const renderContent = () => {
+    if (view === "login" || view === "register") {
+      return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card className="w-full max-w-md shadow-2xl border-0">
+            <CardContent className="p-8 space-y-6">
+              <div className="text-center space-y-2">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2, type: "spring" }}
+                  className="text-5xl mb-4"
+                >
+                  ✈️
+                </motion.div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  {translate("trip_planner")}
+                </h1>
+                <p className="text-gray-500">
+                  {view === "login" ? translate("login_to_account") : translate("create_new_account")}
+                </p>
+              </div>
+                  <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email" required>{translate("email") || "Email"}</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      error={!!formErrors.email}
+                      className="h-12 text-lg"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && view === "login") {
+                          handleLogin(email, password);
+                        }
+                      }}
+                      autoFocus
+                    />
+                    {formErrors.email && <p className="text-red-500 text-sm mt-1">{formErrors.email}</p>}
+                  </div>
+                  {view === "register" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="name" required>{translate("name")}</Label>
+                      <Input
+                        id="name"
+                        placeholder={translate("name")}
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        error={!!formErrors.name}
+                        className="h-12 text-lg"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleRegister(email, name, password);
+                          }
+                        }}
+                      />
+                      {formErrors.name && <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="password" required>{translate("password")}</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder={translate("password")}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      error={!!formErrors.password}
+                      className="h-12 text-lg"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          if (view === "login") {
+                            handleLogin(email, password);
+                          } else {
+                            handleRegister(email, name, password);
+                          }
+                        }
+                      }}
+                    />
+                    {formErrors.password && <p className="text-red-500 text-sm mt-1">{formErrors.password}</p>}
+                  </div>
+                  {formErrors.auth && <p className="text-red-500 text-sm text-center font-semibold">{formErrors.auth}</p>}
+                <Button
+                  onClick={() => {
+                    if (view === "login") {
+                      handleLogin(email, password);
+                    } else {
+                      handleRegister(email, name, password);
+                    }
+                  }}
+                  className="w-full h-12 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                >
+                  {view === "login" ? translate("enter") : translate("register")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setView(view === "login" ? "register" : "login");
+                    // Clear form when switching
+                    setEmail("");
+                    setName("");
+                    setPassword("");
+                    setFormErrors({});
+                  }}
+                  className="w-full"
+                >
+                  {view === "login"
+                    ? translate("no_account") + " " + translate("register")
+                    : translate("already_have_account") + " " + translate("enter")}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+      );
+    }
 
-    return (
+    if (view === "dashboard") {
+      return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 pt-20">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="max-w-7xl mx-auto"
+        >
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                {translate("my_trips")}, {user?.name}! 👋
+              </h1>
+              <p className="text-gray-600 mt-2">{translate("my_trips")}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={handleLogout}>
+                {translate("logout")}
+              </Button>
+            </div>
+          </div>
+
+          {trips.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-16"
+            >
+              <div className="text-6xl mb-4">🗺️</div>
+              <h2 className="text-2xl font-semibold text-gray-700 mb-2">
+                У вас пока нет поездок
+              </h2>
+              <p className="text-gray-500 mb-6">
+                Создайте первую поездку, чтобы начать планирование
+              </p>
+              <Button
+                onClick={createTrip}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-lg px-8 py-6"
+                size="lg"
+              >
+                + {translate("create_first_trip")}
+              </Button>
+            </motion.div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <AnimatePresence>
+                {trips.map((trip, index) => (
+                  <motion.div
+                    key={trip.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    whileHover={{ scale: 1.03, y: -5 }}
+                    className="cursor-pointer"
+                  >
+                    <Card
+                      onClick={() => {
+                        setActiveTrip(trip);
+                        setView("plan");
+                      }}
+                      className="h-full shadow-lg hover:shadow-xl transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm relative overflow-hidden"
+                    >
+                      <CardContent className="p-6 space-y-4 relative z-10">
+                        <div className="flex items-start justify-between">
+                          <h2 className="text-xl font-bold text-gray-800">{trip.name}</h2>
+                          <span className="text-2xl">✈️</span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">{translate("general_progress")}</span>
+                            <span className="font-semibold text-blue-600">{trip.progress}%</span>
+                          </div>
+                          <Progress value={trip.progress} className="h-2" />
+                        </div>
+                        {trip.place && (
+                          <p className="text-sm text-gray-500 flex items-center gap-1">
+                            📍 {trip.place}
+                          </p>
+                        )}
+                        <div className="pt-2 border-t">
+                          <p className="text-xs text-gray-400">
+                            {translate("participants_count")}: {trip.users.length}
+                          </p>
+                          {trip.createdBy === user?.id && (
+                            <p className="text-xs text-blue-500 mt-1">{translate("creator")}</p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.05 }}
+                className="cursor-pointer"
+              >
+                <Card
+                  onClick={createTrip}
+                  className="h-full border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors bg-white/50 backdrop-blur-sm flex items-center justify-center"
+                >
+                  <CardContent className="p-6 w-full text-center">
+                    <div className="text-4xl mb-3">➕</div>
+                    <p className="text-gray-600 font-medium">{translate("create_trip")}</p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+          )}
+        </motion.div>
+      </div>
+    );
+  }
+
+
+
+
+    if (view === "plan" && activeTrip && user) {
+      return (
       <div 
         className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 pt-20 relative overflow-x-hidden"
         style={activeTrip.coverImage ? {
@@ -1232,7 +1231,7 @@ export default function App() {
             transition={{ delay: 0.1 }}
           >
             <Card 
-              className="shadow-2xl border-0 bg-white/80 backdrop-blur-md relative overflow-hidden"
+              className="shadow-2xl border-0 bg-white relative overflow-hidden"
             >
               <CardContent className="p-6 relative z-10">
                 <div className="flex items-center justify-between mb-4">
@@ -1349,7 +1348,7 @@ export default function App() {
             className="grid grid-cols-1 md:grid-cols-3 gap-6"
           >
             {/* Progress Section */}
-            <Card className="md:col-span-2 shadow-xl border-0 bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 backdrop-blur-sm">
+            <Card className="md:col-span-2 shadow-xl border-0 bg-white">
               <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-semibold text-gray-700">{translate("general_progress")}</span>
@@ -1383,7 +1382,7 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
           >
-            <Card className="shadow-2xl border-0 bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 backdrop-blur-sm hover:shadow-3xl transition-all duration-300">
+            <Card className="shadow-2xl border-0 bg-white hover:shadow-3xl transition-all duration-300">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
@@ -1402,7 +1401,7 @@ export default function App() {
                   {[...(activeTrip.places || [])].sort((a, b) => a.order - b.order).map((place) => (
                     <div 
                       key={place.id} 
-                      className={`p-4 rounded-xl bg-white/80 hover:border-blue-300 transition-all shadow-sm ${
+                      className={`p-4 rounded-xl bg-white hover:border-blue-300 transition-all shadow-sm ${
                         place.status === "approved" 
                           ? "border-4 border-green-500" 
                           : place.status === "rejected"
@@ -1544,7 +1543,7 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className="shadow-2xl border-0 bg-gradient-to-br from-white via-green-50/30 to-emerald-50/30 backdrop-blur-sm hover:shadow-3xl transition-all duration-300">
+            <Card className="shadow-2xl border-0 bg-white hover:shadow-3xl transition-all duration-300">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent flex items-center gap-2">
@@ -1573,7 +1572,7 @@ export default function App() {
                       return acc;
                     }, {} as Record<string, typeof activeTrip.expenses>)
                   ).map(([category, expenses]) => (
-                    <div key={category} className="p-4 border-2 border-green-100 rounded-xl bg-white/80 shadow-sm">
+                    <div key={category} className="p-4 border-2 border-green-100 rounded-xl bg-white shadow-sm">
                       <h3 className="font-semibold mb-3 text-green-700">{category}</h3>
                       <div className="space-y-2">
                         {expenses.map((exp) => {
@@ -1663,7 +1662,7 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
           >
-            <Card className="shadow-2xl border-0 bg-gradient-to-br from-white via-orange-50/30 to-amber-50/30 backdrop-blur-sm hover:shadow-3xl transition-all duration-300">
+            <Card className="shadow-2xl border-0 bg-white hover:shadow-3xl transition-all duration-300">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent flex items-center gap-2">
@@ -1778,7 +1777,7 @@ export default function App() {
                       const voteCount = activity.votes.length;
                       const hasVoted = activity.votes.includes(user.id);
                       return (
-                        <div key={activity.id} className="p-4 border-2 border-orange-200 rounded-xl bg-white/80 shadow-sm">
+                        <div key={activity.id} className="p-4 border-2 border-orange-200 rounded-xl bg-white shadow-sm">
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
                               <div className="font-semibold text-gray-800 flex items-center gap-2">
@@ -1861,27 +1860,7 @@ export default function App() {
                             >
                               ✏️ {translate("edit")}
                             </Button>
-                            {activeTrip.createdBy === user.id && (
-                              <Button
-                                onClick={async () => {
-                                  const updated = {
-                                    ...activeTrip,
-                                    activities: ((activeTrip.activities as unknown as Activity[]) || []).map((a: Activity) => ({
-                                      ...a,
-                                      approved: a.id === activity.id,
-                                    })),
-                                    updatedAt: new Date(),
-                                  };
-                                  setActiveTrip(updated);
-                                  await saveTrip(updated);
-                                }}
-                                variant="outline"
-                                size="sm"
-                                className="text-green-600 border-green-600 hover:bg-green-50"
-                              >
-                                {translate("approve")}
-                              </Button>
-                            )}
+
                             <Button
                               onClick={async () => {
                                 if (window.confirm(translate("confirm_delete_activity"))) {
@@ -1922,7 +1901,7 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <Card className="shadow-2xl border-0 bg-gradient-to-br from-white via-purple-50/30 to-pink-50/30 backdrop-blur-sm hover:shadow-3xl transition-all duration-300">
+            <Card className="shadow-2xl border-0 bg-white hover:shadow-3xl transition-all duration-300">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent flex items-center gap-2">
@@ -1942,7 +1921,7 @@ export default function App() {
                 </div>
                 <div className="space-y-3">
                   {(activeTrip.accommodations || []).map((acc) => (
-                    <div key={acc.id} className="p-4 border-2 border-purple-200 rounded-xl bg-white/80 shadow-sm hover:border-purple-300 transition-all">
+                    <div key={acc.id} className="p-4 border-2 border-purple-200 rounded-xl bg-white shadow-sm hover:border-purple-300 transition-all">
                       <div className="flex items-start gap-4">
                         {acc.imageUrl && (
                           <img
@@ -2074,7 +2053,7 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35 }}
           >
-            <Card className="shadow-2xl border-0 bg-gradient-to-br from-white via-indigo-50/30 to-cyan-50/30 backdrop-blur-sm hover:shadow-3xl transition-all duration-300">
+            <Card className="shadow-2xl border-0 bg-white hover:shadow-3xl transition-all duration-300">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent flex items-center gap-2">
@@ -2103,7 +2082,7 @@ export default function App() {
                       other: "🚛",
                     };
                     return (
-                      <div key={tr.id} className="p-4 border-2 border-indigo-200 rounded-xl bg-white/80 shadow-sm hover:border-indigo-300 transition-all">
+                      <div key={tr.id} className="p-4 border-2 border-indigo-200 rounded-xl bg-white shadow-sm hover:border-indigo-300 transition-all">
                         <div className="flex items-start gap-3 mb-2">
                           <span className="text-3xl">{typeIcons[tr.type]}</span>
                           <div className="flex-1">
@@ -3644,420 +3623,426 @@ export default function App() {
     );
   }
 
-  if (view === "chat" && activeTrip && user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 pt-20">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-4 mb-6"
-          >
-            <Button
-              variant="ghost"
-              onClick={() => setView("plan")}
-              className="text-lg"
+    if (view === "chat" && activeTrip && user) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 pt-20">
+          <div className="max-w-4xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center gap-4 mb-6"
             >
-              ← Назад
-            </Button>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Чат поездки
-            </h1>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm h-[600px] flex flex-col">
-              <CardContent className="p-6 flex-1 flex flex-col">
-                <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
-                  {activeTrip.chat.length === 0 ? (
-                    <div className="text-center text-gray-400 py-12">
-                      <div className="text-4xl mb-2">💬</div>
-                      <p>Пока нет сообщений. Начните общение!</p>
-                    </div>
-                  ) : (
-                    <AnimatePresence>
-                      {activeTrip.chat.map((m, i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0 }}
-                          className={`flex ${m.user === user.name ? "justify-end" : "justify-start"}`}
-                        >
-                          <div
-                            className={`max-w-[70%] rounded-2xl px-4 py-3 ${
-                              m.user === user.name
-                                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-                                : "bg-gray-200 text-gray-800"
-                            }`}
-                          >
-                            <div className="font-semibold text-sm mb-1">{m.user}</div>
-                            <div className="text-sm">{m.text}</div>
-                            {m.time && (
-                              <div className="text-xs opacity-70 mt-1">
-                                {new Date(m.time).toLocaleTimeString("ru-RU", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                  )}
-                </div>
-                <div className="flex gap-2 pt-4 border-t">
-                  <Input
-                    placeholder={translate("message")}
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        sendMessage();
-                      }
-                    }}
-                    className="flex-1 h-12"
-                  />
-                  <Button
-                    onClick={sendMessage}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-12 px-6"
-                  >
-                     {translate("send")}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </div>
-    );
-  }
-
-  if (view === "summary" && activeTrip) {
-    // tripUsers is already fetched in useEffect
-    
-    // Group activities by day (only approved)
-    const activitiesArray = (activeTrip.activities as unknown as Activity[]) || [];
-    const approvedActivities = activitiesArray.filter((a: Activity) => a.status === "approved" || a.approved);
-    
-    const activitiesByDay = [...approvedActivities]
-      .reduce((acc, activity: Activity) => {
-        const day = activity.day || 1;
-        if (!acc[day]) acc[day] = [];
-        acc[day].push(activity);
-        return acc;
-      }, {} as Record<number, Activity[]>);
-
-    const maxDay = Math.max(0, ...Object.keys(activitiesByDay).map(Number));
-
-    // Group activities by participant (only approved)
-    const activitiesByParticipant = tripUsers.reduce((acc, user) => {
-      const userActivities = approvedActivities.filter(a => (a.votes || []).includes(user.id));
-      if (userActivities.length > 0) {
-        acc[user.id] = userActivities;
-      }
-      return acc;
-    }, {} as Record<string, Activity[]>);
-
-    const approvedPlaces = (activeTrip.places || []).filter(p => p.status === "approved");
-    const approvedTransports = (activeTrip.transports || []).filter(t => t.status === "approved");
-    const approvedAccommodations = (activeTrip.accommodations || []).filter(a => a.status === "approved");
-
-    const copySummary = () => {
-      let text = `${translate("trip_plan")}: ${activeTrip.name}\n\n`;
-      text += `${translate("participants")}: ${tripUsers.map(u => u.name).join(", ")}\n`;
-      text += `${translate("total_spent")}: ${getTotalExpenses().toFixed(2)} ${activeTrip.currency || "RUB"}\n\n`;
-      
-      if (approvedPlaces.length > 0) {
-        text += `${translate("places").toUpperCase()}:\n`;
-        [...approvedPlaces].sort((a, b) => a.order - b.order).forEach((place, idx) => {
-          text += `${idx + 1}. ${place.name}\n`;
-          text += `   ${translate("address")}: ${place.address}\n`;
-          if (place.googleMapsLink) text += `   ${translate("map")}: ${place.googleMapsLink}\n`;
-        });
-        text += `\n`;
-      }
-
-      if (approvedTransports.length > 0) {
-        text += `${translate("transport").toUpperCase()}:\n`;
-        approvedTransports.forEach((tr) => {
-          const typeNames = { 
-            plane: translate("transport_plane"), 
-            train: translate("transport_train"), 
-            bus: translate("transport_bus"), 
-            car: translate("transport_car"), 
-            ship: translate("transport_ship"), 
-            other: translate("transport_other") 
-          };
-          text += `• ${typeNames[tr.type]}: ${tr.from} → ${tr.to}\n`;
-          text += `  ${translate("departure_time")}: ${tr.departureTime} ${translate("from_preposition")} ${tr.departurePlace}\n`;
-          if (tr.arrivalTime) text += `  ${translate("arrival_time")}: ${tr.arrivalTime} ${translate("in_preposition")} ${tr.arrivalPlace}\n`;
-        });
-        text += `\n`;
-      }
-
-      if (approvedAccommodations.length > 0) {
-        text += `${translate("accommodation").toUpperCase()}:\n`;
-        approvedAccommodations.forEach((acc) => {
-          text += `• ${acc.name}\n`;
-          text += `  ${translate("address")}: ${acc.address}\n`;
-          text += `  ${translate("check_in")}: ${acc.checkIn} | ${translate("check_out")}: ${acc.checkOut}\n`;
-          if (acc.bookingLink) text += `  ${translate("link")}: ${acc.bookingLink}\n`;
-        });
-        text += `\n`;
-      }
-
-      if (maxDay > 0) {
-        text += `${translate("daily_plan").toUpperCase()}:\n\n`;
-        for (let day = 1; day <= maxDay; day++) {
-          const dayActivities = activitiesByDay[day] || [];
-          if (dayActivities.length === 0) continue;
-          
-          text += `${translate("day").toUpperCase()} ${day}:\n`;
-          dayActivities.sort((a, b) => a.time.localeCompare(b.time));
-          dayActivities.forEach((activity) => {
-            text += `  ${activity.time} - ${activity.name}\n`;
-            text += `    ${translate("address")}: ${activity.address}\n`;
-            if (activity.link) text += `    ${translate("link")}: ${activity.link}\n`;
-            if (activity.description) text += `    ${activity.description}\n`;
-          });
-          text += `\n`;
-        }
-      }
-
-      // Individual Plans in Summary
-      if (Object.keys(activitiesByParticipant).length > 0) {
-        text += `${translate("individual_plans").toUpperCase()}:\n\n`;
-        tripUsers.forEach(user => {
-          const userActs = activitiesByParticipant[user.id];
-          if (userActs && userActs.length > 0) {
-            text += `${user.name}:\n`;
-            userActs.sort((a,b) => (a.day - b.day) || a.time.localeCompare(b.time)).forEach(a => {
-              text += `  • [${translate("day")} ${a.day}] ${a.time} - ${a.name}\n`;
-            });
-            text += `\n`;
-          }
-        });
-      }
-
-      navigator.clipboard.writeText(text);
-      alert(translate("link_copied"));
-    };
-
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 pt-20">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center justify-between"
-          >
-            <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
                 onClick={() => setView("plan")}
                 className="text-lg"
               >
-                ← Назад
+                ← {translate("back")}
               </Button>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Саммари поездки
+                {translate("trip_chat")}
               </h1>
-            </div>
-            <Button
-              onClick={copySummary}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
             >
-              📋 {translate("copy_summary")}
-            </Button>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-              <CardContent className="p-8 space-y-6">
-                <div className="pb-4 border-b">
-                  <h2 className="text-2xl font-bold mb-2">{activeTrip.name}</h2>
-                  <div className="flex flex-wrap gap-2">
-                    {tripUsers.map((u) => (
-                      <span
-                        key={u.id}
-                        className="px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full text-sm font-medium text-blue-700 flex items-center gap-1"
-                      >
-                        {u.name}
-                        {u.id === activeTrip.createdBy && <span>👑</span>}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="mt-2 text-sm text-gray-600">
-                    Всего потрачено: <span className="font-bold">{getTotalExpenses().toFixed(2)} ₽</span>
-                  </div>
-                </div>
-
-                {/* Places */}
-                {approvedPlaces.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">📍 {translate("places")}</h3>
-                    <div className="space-y-2">
-                      {[...approvedPlaces].sort((a, b) => a.order - b.order).map((place) => (
-                        <div key={place.id} className="p-3 bg-gray-50 rounded">
-                          <div className="font-medium">{place.name}</div>
-                          <div className="text-sm text-gray-600">{place.address}</div>
-                          {place.googleMapsLink && (
-                            <a
-                              href={place.googleMapsLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 text-sm hover:underline"
+              <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm h-[600px] flex flex-col">
+                <CardContent className="p-6 flex-1 flex flex-col">
+                  <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
+                    {activeTrip.chat.length === 0 ? (
+                      <div className="text-center text-gray-400 py-12">
+                        <div className="text-4xl mb-2">💬</div>
+                        <p>{translate("no_messages")}</p>
+                      </div>
+                    ) : (
+                      <AnimatePresence>
+                        {activeTrip.chat.map((m, i) => (
+                          <motion.div
+                            key={i}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0 }}
+                            className={`flex ${m.user === user.name ? "justify-end" : "justify-start"}`}
+                          >
+                            <div
+                              className={`max-w-[70%] rounded-2xl px-4 py-3 ${
+                                m.user === user.name
+                                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                                  : "bg-gray-200 text-gray-800"
+                              }`}
                             >
-                              🗺️ {translate("open_google_maps")}
-                            </a>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Transport */}
-                {approvedTransports.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">🚗 {translate("transport")}</h3>
-                    <div className="space-y-2">
-                      {approvedTransports.map((tr) => {
-                        const typeIcons = { plane: "✈️", train: "🚂", bus: "🚌", car: "🚗", ship: "🚢", other: "🚛" };
-                        return (
-                          <div key={tr.id} className="p-3 bg-gray-50 rounded">
-                            <div className="font-medium">{typeIcons[tr.type]} {tr.from} → {tr.to}</div>
-                            <div className="text-sm text-gray-600">
-                              {tr.departureTime} из {tr.departurePlace}
-                              {tr.arrivalTime && ` → ${tr.arrivalTime} в ${tr.arrivalPlace}`}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Accommodations */}
-                {approvedAccommodations.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">🏠 {translate("accommodation")}</h3>
-                    <div className="space-y-2">
-                      {approvedAccommodations.map((acc) => (
-                        <div key={acc.id} className="p-3 bg-gray-50 rounded">
-                          <div className="font-medium">{acc.name}</div>
-                          <div className="text-sm text-gray-600">{acc.address}</div>
-                          <div className="text-sm text-gray-600">
-                            {acc.checkIn} - {acc.checkOut}
-                          </div>
-                          {acc.bookingLink && (
-                            <a
-                              href={acc.bookingLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 text-sm hover:underline"
-                            >
-                              🔗 {translate("open_booking")}
-                            </a>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Daily Plan */}
-                {maxDay > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">📅 {translate("daily_plan")}</h3>
-                    <div className="space-y-4">
-                      {Array.from({ length: maxDay }, (_, i) => i + 1).map((day) => {
-                        const dayActivities = activitiesByDay[day] || [];
-                        if (dayActivities.length === 0) return null;
-                        
-                        dayActivities.sort((a: Activity, b: Activity) => a.time.localeCompare(b.time));
-                        return (
-                          <div key={day} className="border-l-4 border-blue-500 pl-4">
-                            <h4 className="font-semibold text-lg mb-2">{translate("day")} {day}</h4>
-                            <div className="space-y-3">
-                              {dayActivities.map((activity: Activity) => (
-                                <div key={activity.id} className="p-3 bg-green-50 rounded border border-green-200">
-                                  <div className="font-medium flex items-center gap-2">
-                                    <span className="text-green-600">✓</span>
-                                    {activity.time} - {activity.name}
-                                  </div>
-                                  <div className="text-sm text-gray-600 mt-1">📍 {activity.address}</div>
-                                  {activity.link && (
-                                    <a
-                                      href={activity.link}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 text-sm hover:underline"
-                                    >
-                                      🔗 {translate("link")}
-                                    </a>
-                                  )}
-                                  {activity.description && (
-                                    <div className="text-sm text-gray-600 mt-1">{activity.description}</div>
-                                  )}
+                              <div className="font-semibold text-sm mb-1">{m.user}</div>
+                              <div className="text-sm">{m.text}</div>
+                              {m.time && (
+                                <div className="text-xs opacity-70 mt-1">
+                                  {new Date(m.time).toLocaleTimeString(language === "ru" ? "ru-RU" : "en-US", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
                                 </div>
-                              ))}
+                              )}
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    )}
                   </div>
-                )}
-
-                {/* Individual Plans */}
-                {Object.keys(activitiesByParticipant).length > 0 && (
-                  <div className="pt-6 border-t">
-                    <h3 className="text-lg font-semibold mb-4">👤 {translate("activities_by_participant")}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {tripUsers.map((user) => {
-                        const userActs = activitiesByParticipant[user.id];
-                        if (!userActs || userActs.length === 0) return null;
-                        
-                        return (
-                          <div key={user.id} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
-                            <div className="flex items-center gap-2 mb-3">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
-                                {user.name[0].toUpperCase()}
-                              </div>
-                              <span className="font-semibold text-gray-800">{user.name}</span>
-                            </div>
-                            <div className="space-y-2">
-                              {userActs.sort((a,b) => (a.day - b.day) || a.time.localeCompare(b.time)).map(a => (
-                                <div key={a.id} className="text-sm flex gap-2">
-                                  <span className="text-blue-500 font-medium whitespace-nowrap">д.{a.day} {a.time}</span>
-                                  <span className="text-gray-700">{a.name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                  <div className="flex gap-2 pt-4 border-t">
+                    <Input
+                      placeholder={translate("message")}
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          sendMessage();
+                        }
+                      }}
+                      className="flex-1 h-12"
+                    />
+                    <Button
+                      onClick={sendMessage}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-12 px-6"
+                    >
+                       {translate("send")}
+                    </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  return null;
+    if (view === "summary" && activeTrip) {
+      // Group activities by day (only approved)
+      const activitiesArray = (activeTrip.activities as unknown as Activity[]) || [];
+      const approvedActivities = activitiesArray.filter((a: Activity) => a.status === "approved" || a.approved);
+      
+      const activitiesByDay = [...approvedActivities]
+        .reduce((acc, activity: Activity) => {
+          const day = activity.day || 1;
+          if (!acc[day]) acc[day] = [];
+          acc[day].push(activity);
+          return acc;
+        }, {} as Record<number, Activity[]>);
+
+      const maxDay = Math.max(0, ...Object.keys(activitiesByDay).map(Number));
+
+      // Group activities by participant (only approved)
+      const activitiesByParticipant = tripUsers.reduce((acc, user) => {
+        const userActivities = approvedActivities.filter(a => (a.votes || []).includes(user.id));
+        if (userActivities.length > 0) {
+          acc[user.id] = userActivities;
+        }
+        return acc;
+      }, {} as Record<string, Activity[]>);
+
+      const approvedPlaces = (activeTrip.places || []).filter(p => p.status === "approved");
+      const approvedTransports = (activeTrip.transports || []).filter(t => t.status === "approved");
+      const approvedAccommodations = (activeTrip.accommodations || []).filter(a => a.status === "approved");
+
+      const copySummary = () => {
+        let text = `${translate("trip_plan")}: ${activeTrip.name}\n\n`;
+        text += `${translate("participants")}: ${tripUsers.map(u => u.name).join(", ")}\n`;
+        text += `${translate("total_spent")}: ${getTotalExpenses().toFixed(2)} ${activeTrip.currency || "RUB"}\n\n`;
+        
+        if (approvedPlaces.length > 0) {
+          text += `${translate("places").toUpperCase()}:\n`;
+          [...approvedPlaces].sort((a, b) => a.order - b.order).forEach((place, idx) => {
+            text += `${idx + 1}. ${place.name}\n`;
+            text += `   ${translate("address")}: ${place.address}\n`;
+            if (place.googleMapsLink) text += `   ${translate("map")}: ${place.googleMapsLink}\n`;
+          });
+          text += `\n`;
+        }
+
+        if (approvedTransports.length > 0) {
+          text += `${translate("transport").toUpperCase()}:\n`;
+          approvedTransports.forEach((tr) => {
+            const typeNames = { 
+              plane: translate("transport_plane"), 
+              train: translate("transport_train"), 
+              bus: translate("transport_bus"), 
+              car: translate("transport_car"), 
+              ship: translate("transport_ship"), 
+              other: translate("transport_other") 
+            };
+            text += `• ${typeNames[tr.type]}: ${tr.from} → ${tr.to}\n`;
+            text += `  ${translate("departure_time")}: ${tr.departureTime} ${translate("from_preposition")} ${tr.departurePlace}\n`;
+            if (tr.arrivalTime) text += `  ${translate("arrival_time")}: ${tr.arrivalTime} ${translate("in_preposition")} ${tr.arrivalPlace}\n`;
+          });
+          text += `\n`;
+        }
+
+        if (approvedAccommodations.length > 0) {
+          text += `${translate("accommodation").toUpperCase()}:\n`;
+          approvedAccommodations.forEach((acc) => {
+            text += `• ${acc.name}\n`;
+            text += `  ${translate("address")}: ${acc.address}\n`;
+            text += `  ${translate("check_in")}: ${acc.checkIn} | ${translate("check_out")}: ${acc.checkOut}\n`;
+            if (acc.bookingLink) text += `  ${translate("link")}: ${acc.bookingLink}\n`;
+          });
+          text += `\n`;
+        }
+
+        if (maxDay > 0) {
+          text += `${translate("daily_plan").toUpperCase()}:\n\n`;
+          for (let day = 1; day <= maxDay; day++) {
+            const dayActivities = activitiesByDay[day] || [];
+            if (dayActivities.length === 0) continue;
+            
+            text += `${translate("day").toUpperCase()} ${day}:\n`;
+            dayActivities.sort((a, b) => a.time.localeCompare(b.time));
+            dayActivities.forEach((activity) => {
+              text += `  ${activity.time} - ${activity.name}\n`;
+              text += `    ${translate("address")}: ${activity.address}\n`;
+              if (activity.link) text += `    ${translate("link")}: ${activity.link}\n`;
+              if (activity.description) text += `    ${activity.description}\n`;
+            });
+            text += `\n`;
+          }
+        }
+
+        // Individual Plans in Summary
+        if (Object.keys(activitiesByParticipant).length > 0) {
+          text += `${translate("individual_plans").toUpperCase()}:\n\n`;
+          tripUsers.forEach(user => {
+            const userActs = activitiesByParticipant[user.id];
+            if (userActs && userActs.length > 0) {
+              text += `${user.name}:\n`;
+              userActs.sort((a,b) => (a.day - b.day) || a.time.localeCompare(b.time)).forEach(a => {
+                text += `  • [${translate("day")} ${a.day}] ${a.time} - ${a.name}\n`;
+              });
+              text += `\n`;
+            }
+          });
+        }
+
+        navigator.clipboard.writeText(text);
+        alert(translate("link_copied"));
+      };
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 pt-20">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center justify-between"
+            >
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => setView("plan")}
+                  className="text-lg"
+                >
+                  ← {translate("back")}
+                </Button>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                   {translate("trip_summary")}
+                </h1>
+              </div>
+              <Button
+                onClick={copySummary}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              >
+                📋 {translate("copy_summary")}
+              </Button>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+                <CardContent className="p-8 space-y-6">
+                  <div className="pb-4 border-b">
+                    <h2 className="text-2xl font-bold mb-2">{activeTrip.name}</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {tripUsers.map((u) => (
+                        <span
+                          key={u.id}
+                          className="px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full text-sm font-medium text-blue-700 flex items-center gap-1"
+                        >
+                          {u.name}
+                          {u.id === activeTrip.createdBy && <span>👑</span>}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="mt-2 text-sm text-gray-600">
+                      {translate("total_spent")}: <span className="font-bold">{getTotalExpenses().toFixed(2)} {activeTrip.currency || "RUB"}</span>
+                    </div>
+                  </div>
+
+                  {/* Places */}
+                  {approvedPlaces.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3">📍 {translate("places")}</h3>
+                      <div className="space-y-2">
+                        {[...approvedPlaces].sort((a, b) => a.order - b.order).map((place) => (
+                          <div key={place.id} className="p-3 bg-gray-50 rounded">
+                            <div className="font-medium">{place.name}</div>
+                            <div className="text-sm text-gray-600">{place.address}</div>
+                            {place.googleMapsLink && (
+                              <a
+                                href={place.googleMapsLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 text-sm hover:underline"
+                              >
+                                🗺️ {translate("open_google_maps")}
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Transport */}
+                  {approvedTransports.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3">🚗 {translate("transport")}</h3>
+                      <div className="space-y-2">
+                        {approvedTransports.map((tr) => {
+                          const typeIcons = { plane: "✈️", train: "🚂", bus: "🚌", car: "🚗", ship: "🚢", other: "🚛" };
+                          return (
+                            <div key={tr.id} className="p-3 bg-gray-50 rounded">
+                              <div className="font-medium">{typeIcons[tr.type]} {tr.from} → {tr.to}</div>
+                              <div className="text-sm text-gray-600">
+                                {tr.departureTime} {translate("from_preposition")} {tr.departurePlace}
+                                {tr.arrivalTime && ` → ${tr.arrivalTime} ${translate("in_preposition")} ${tr.arrivalPlace}`}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Accommodations */}
+                  {approvedAccommodations.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3">🏠 {translate("accommodation")}</h3>
+                      <div className="space-y-2">
+                        {approvedAccommodations.map((acc) => (
+                          <div key={acc.id} className="p-3 bg-gray-50 rounded">
+                            <div className="font-medium">{acc.name}</div>
+                            <div className="text-sm text-gray-600">{acc.address}</div>
+                            <div className="text-sm text-gray-600">
+                              {acc.checkIn} - {acc.checkOut}
+                            </div>
+                            {acc.bookingLink && (
+                              <a
+                                href={acc.bookingLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 text-sm hover:underline"
+                              >
+                                🔗 {translate("open_booking")}
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Daily Plan */}
+                  {maxDay > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3">📅 {translate("daily_plan")}</h3>
+                      <div className="space-y-4">
+                        {Array.from({ length: maxDay }, (_, i) => i + 1).map((day) => {
+                          const dayActivities = activitiesByDay[day] || [];
+                          if (dayActivities.length === 0) return null;
+                          
+                          dayActivities.sort((a: Activity, b: Activity) => a.time.localeCompare(b.time));
+                          return (
+                            <div key={day} className="border-l-4 border-blue-500 pl-4">
+                              <h4 className="font-semibold text-lg mb-2">{translate("day")} {day}</h4>
+                              <div className="space-y-3">
+                                {dayActivities.map((activity: Activity) => (
+                                  <div key={activity.id} className="p-3 bg-green-50 rounded border border-green-200">
+                                    <div className="font-medium flex items-center gap-2">
+                                      <span className="text-green-600">✓</span>
+                                      {activity.time} - {activity.name}
+                                    </div>
+                                    <div className="text-sm text-gray-600 mt-1">📍 {activity.address}</div>
+                                    {activity.link && (
+                                      <a
+                                        href={activity.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 text-sm hover:underline"
+                                      >
+                                        🔗 {translate("link")}
+                                      </a>
+                                    )}
+                                    {activity.description && (
+                                      <div className="text-sm text-gray-600 mt-1">{activity.description}</div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Individual Plans */}
+                  {Object.keys(activitiesByParticipant).length > 0 && (
+                    <div className="pt-6 border-t">
+                      <h3 className="text-lg font-semibold mb-4">👤 {translate("activities_by_participant")}</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {tripUsers.map((user) => {
+                          const userActs = activitiesByParticipant[user.id];
+                          if (!userActs || userActs.length === 0) return null;
+                          
+                          return (
+                            <div key={user.id} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                                  {user.name[0].toUpperCase()}
+                                </div>
+                                <span className="font-semibold text-gray-800">{user.name}</span>
+                              </div>
+                              <div className="space-y-2">
+                                {userActs.sort((a,b) => (a.day - b.day) || a.time.localeCompare(b.time)).map(a => (
+                                  <div key={a.id} className="text-sm flex gap-2">
+                                    <span className="text-blue-500 font-medium whitespace-nowrap">{translate("day_shortcut")}{a.day} {a.time}</span>
+                                    <span className="text-gray-700">{a.name}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <>
+      <LanguageSelector currentLanguage={language} onLanguageChange={setLanguage} />
+      {renderContent()}
+    </>
+  );
 }
