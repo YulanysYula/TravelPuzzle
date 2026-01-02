@@ -49,11 +49,7 @@ export interface SupabaseUser {
 
 // Функции для работы с пользователями в Supabase
 export const saveUserToSupabase = async (user: any) => {
-  console.log(isSupabaseConfigured());
-  console.log(supabase);
-  debugger
   if (!isSupabaseConfigured() || !supabase) return null;
-  debugger
   
   try {
     const { data, error } = await supabase
@@ -66,12 +62,9 @@ export const saveUserToSupabase = async (user: any) => {
         created_at: user.createdAt || new Date().toISOString(),
       });
 
-      debugger
-
     if (error) throw error;
     return data;
   } catch (error) {
-    debugger
     if (isSupabaseConfigured()) {
       console.warn('Error saving user to Supabase:', error);
     }

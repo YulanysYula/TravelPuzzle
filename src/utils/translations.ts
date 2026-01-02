@@ -21,6 +21,8 @@ export const translations: Record<string, Record<Language, string>> = {
   "login_to_account": { ru: "Войдите в свой аккаунт", en: "Login to your account" },
   "create_new_account": { ru: "Создайте новый аккаунт", en: "Create a new account" },
 
+  "welcome": { ru: "Добро пожаловать", en: "Welcome" },
+  "welcome_back": { ru: "С возвращением", en: "Welcome back" },
   
   // Dashboard
   "my_trips": { ru: "Мои поездки", en: "My Trips" },
@@ -107,6 +109,13 @@ export const translations: Record<string, Record<Language, string>> = {
   "owes": { ru: "Должен", en: "Owes" },
   "owed": { ru: "Должны", en: "Owed" },
   "no_expenses": { ru: "Нет добавленных расходов", en: "No expenses added" },
+  "split_type": { ru: "Тип распределения", en: "Split Type" },
+  "split_equal": { ru: "Поровну", en: "Equally" },
+  "split_shares": { ru: "Доли/Вручную", en: "Manual Shares" },
+  "who_pays": { ru: "Кто платит?", en: "Who pays?" },
+  "who_summarize": { ru: "Кто кому сколько должен", en: "Who owes whom how much" },
+  "balance_summary": { ru: "Итоговый баланс", en: "Balance Summary" },
+  "no_debts": { ru: "Все долги погашены!", en: "All debts settled!" },
   
   // Expense Categories
   "category_transport": { ru: "Транспорт", en: "Transport" },
