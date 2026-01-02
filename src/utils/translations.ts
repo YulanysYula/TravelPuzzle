@@ -119,10 +119,10 @@ export const translations: Record<string, Record<Language, string>> = {
   
   // Status
   "status": { ru: "Статус", en: "Status" },
-  "status_new": { ru: "Новая", en: "New" },
-  "status_possible": { ru: "Возможная", en: "Possible" },
-  "status_rejected": { ru: "Отклонена", en: "Rejected" },
-  "status_approved": { ru: "Утверждена", en: "Approved" },
+  "status_new": { ru: "Новое", en: "New" },
+  "status_possible": { ru: "Возможно", en: "Possible" },
+  "status_rejected": { ru: "Отклонено", en: "Rejected" },
+  "status_approved": { ru: "Утверждено", en: "Approved" },
   
   // Common
   "up": { ru: "↑ Вверх", en: "↑ Up" },
@@ -148,6 +148,8 @@ export const translations: Record<string, Record<Language, string>> = {
   "general_info": { ru: "Общая информация", en: "General Information" },
   "trip_dates": { ru: "Даты поездки", en: "Trip Dates" },
   "daily_plan": { ru: "План по дням", en: "Daily Plan" },
+  "individual_plans": { ru: "Индивидуальные планы", en: "Individual Plans" },
+  "activities_by_participant": { ru: "Активности по участникам", en: "Activities by Participant" },
 
   "no_activities_day": { ru: "Нет запланированных активностей на этот день", en: "No activities planned for this day" },
   
@@ -199,6 +201,7 @@ export const translations: Record<string, Record<Language, string>> = {
   "confirm_delete_participant": { ru: "Удалить этого участника из поездки?", en: "Remove this participant from the trip?" },
   "day_param": { ru: "День {day} в {time}", en: "Day {day} at {time}" },
   "field_required": { ru: "Это поле обязательно для заполнения", en: "This field is required" },
+  "guests": { ru: "Количество гостей", en: "Number of guests" },
   
 };
 

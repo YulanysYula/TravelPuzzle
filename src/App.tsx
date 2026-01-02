@@ -52,6 +52,21 @@ export default function App() {
   
   // Translation helper
   const translate = (key: string): string => t(key, language);
+  
+  const renderStatusBadge = (status?: string) => {
+    if (!status) return null;
+    const colors: Record<string, string> = {
+      new: "bg-blue-100 text-blue-700 border border-blue-200",
+      possible: "bg-yellow-100 text-yellow-700 border border-yellow-200",
+      rejected: "bg-red-100 text-red-700 border border-red-200",
+      approved: "bg-green-100 text-green-700 border border-green-200",
+    };
+    return (
+      <span className={`text-[10px] uppercase tracking-wider font-black px-2 py-0.5 rounded-full shadow-sm ${colors[status] || "bg-gray-100 text-gray-700 border border-gray-200"}`}>
+        {translate(`status_${status}`)}
+      </span>
+    );
+  };
   // Login/Register form state
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -75,7 +90,7 @@ export default function App() {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareLink, setShareLink] = useState("");
   const [newActivity, setNewActivity] = useState({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR", price: "" });
-  const [newAccommodation, setNewAccommodation] = useState({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR" });
+  const [newAccommodation, setNewAccommodation] = useState({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR", guests: 1 });
   const [newTransport, setNewTransport] = useState({ type: "plane" as "plane" | "train" | "bus" | "car" | "ship" | "other", from: "", to: "", departureTime: "", departurePlace: "", arrivalTime: "", arrivalPlace: "", passengers: 1, description: "", imageUrl: "", status: "new" as "new" | "possible" | "rejected" | "approved", currency: "EUR", price: "" });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -384,7 +399,7 @@ export default function App() {
     const updated: Trip = {
       ...activeTrip,
       activities: ((activeTrip.activities as unknown as Activity[]) || []).map(a => 
-        a.id === editingItem.id ? { ...a, ...newActivity, price: parseFloat(newActivity.price) || 0 } : a
+        a.id === editingItem.id ? { ...a, ...newActivity, approved: newActivity.status === "approved", price: parseFloat(newActivity.price) || 0 } : a
       ),
       updatedAt: new Date(),
     };
@@ -421,7 +436,7 @@ export default function App() {
     saveTrip(withProgress);
     setEditAccommodationDialogOpen(false);
     setEditingItem(null);
-    setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new", currency: "EUR" });
+    setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new", currency: "EUR", guests: 1 });
     setFormErrors({});
   };
 
@@ -1081,6 +1096,8 @@ export default function App() {
       checkOut: newAccommodation.checkOut,
       price: parseFloat(newAccommodation.price) || 0,
       status: newAccommodation.status || "new",
+      guests: newAccommodation.guests,
+      votes: [],
       createdAt: new Date(),
     };
     
@@ -1093,7 +1110,7 @@ export default function App() {
     const withProgress = { ...updated, progress: calculateProgress(updated) };
     setActiveTrip(withProgress);
     saveTrip(withProgress);
-    setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new", currency: "EUR" });
+    setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new", currency: "EUR", guests: 1 });
     setFormErrors({});
     setAccommodationDialogOpen(false);
   };
@@ -1416,7 +1433,10 @@ export default function App() {
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <div className="font-semibold text-lg text-gray-800">{place.name}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="font-semibold text-lg text-gray-800">{place.name}</div>
+                            {renderStatusBadge(place.status || "new")}
+                          </div>
                           <div className="text-sm text-gray-600 mt-1">{place.address}</div>
                           {place.googleMapsLink && (
                             <a
@@ -1693,7 +1713,7 @@ export default function App() {
                           <div className="flex-1">
                             <div className="font-semibold text-lg flex items-center gap-2 text-gray-800">
                               {activity.name}
-                              <span className="text-green-600 text-xs bg-green-100 px-2 py-0.5 rounded-full font-bold">{translate("approved")}</span>
+                              {renderStatusBadge(activity.status || "approved")}
                             </div>
                             <div className="text-sm text-gray-600 mt-1">{activity.description}</div>
                             <div className="text-sm text-gray-500 mt-1">📍 {activity.address}</div>
@@ -1780,7 +1800,10 @@ export default function App() {
                         <div key={activity.id} className="p-4 border-2 border-orange-200 rounded-xl bg-white/80 shadow-sm">
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
-                              <div className="font-semibold text-gray-800">{activity.name}</div>
+                              <div className="font-semibold text-gray-800 flex items-center gap-2">
+                                {activity.name}
+                                {renderStatusBadge(activity.status || "new")}
+                              </div>
                               <div className="text-sm text-gray-600 mt-1">{activity.description}</div>
                               <div className="text-sm text-gray-500 mt-1">📍 {activity.address}</div>
                               {activity.link && (
@@ -1948,7 +1971,10 @@ export default function App() {
                           />
                         )}
                         <div className="flex-1">
-                          <div className="font-semibold text-lg text-gray-800">{acc.name}</div>
+                          <div className="font-semibold text-lg text-gray-800 flex items-center gap-2">
+                            {acc.name}
+                            {renderStatusBadge(acc.status || "new")}
+                          </div>
                           <div className="text-sm text-gray-600 mt-1">📍 {acc.address}</div>
                           <div className="text-sm text-gray-500 mt-1">{acc.description}</div>
                           <div className="text-sm mt-2 bg-purple-50 px-3 py-1 rounded-full inline-block">
@@ -1971,7 +1997,38 @@ export default function App() {
                           )}
                         </div>
                       </div>
+                      <div className="flex items-center gap-2 mt-2 px-1">
+                        <span className="text-sm text-gray-500 flex items-center gap-1">
+                          👥 {translate("guests")}: {acc.guests || 1}
+                        </span>
+                      </div>
                       <div className="flex gap-2 mt-3">
+                        <Button
+                          onClick={() => {
+                            const hasVoted = (acc.votes || []).includes(user.id);
+                            const updated = {
+                              ...activeTrip,
+                              accommodations: (activeTrip.accommodations || []).map((a: Accommodation) =>
+                                a.id === acc.id
+                                  ? {
+                                      ...a,
+                                      votes: hasVoted
+                                        ? (a.votes || []).filter(id => id !== user.id)
+                                        : [...(a.votes || []), user.id],
+                                    }
+                                  : a
+                              ),
+                              updatedAt: new Date(),
+                            };
+                            setActiveTrip(updated);
+                            saveTrip(updated);
+                          }}
+                          variant={(acc.votes || []).includes(user.id) ? "default" : "outline"}
+                          size="sm"
+                          className={(acc.votes || []).includes(user.id) ? "bg-blue-600" : "border-blue-300 text-blue-600 hover:bg-blue-50"}
+                        >
+                          {(acc.votes || []).includes(user.id) ? translate("voted") : translate("vote")} ({(acc.votes || []).length})
+                        </Button>
                         <Button
                           onClick={() => {
                             setEditingItem(acc);
@@ -1986,6 +2043,7 @@ export default function App() {
                               price: acc.price.toString(),
                               status: (acc.status || "new") as "new" | "possible" | "rejected" | "approved",
                               currency: acc.currency || "EUR",
+                              guests: acc.guests || 1,
                             });
                             setEditAccommodationDialogOpen(true);
                             setFormErrors({});
@@ -2068,7 +2126,10 @@ export default function App() {
                         <div className="flex items-start gap-3 mb-2">
                           <span className="text-3xl">{typeIcons[tr.type]}</span>
                           <div className="flex-1">
-                            <div className="font-semibold text-lg capitalize text-gray-800">{tr.type}</div>
+                            <div className="font-semibold text-lg capitalize text-gray-800 flex items-center gap-2">
+                              {tr.type}
+                              {renderStatusBadge(tr.status || "new")}
+                            </div>
                             <div className="text-sm text-gray-600 mt-1 font-medium">
                               {tr.from} → {tr.to}
                             </div>
@@ -2498,6 +2559,19 @@ export default function App() {
                     className="h-12"
                   />
                 </div>
+                <div className="flex flex-col gap-2">
+                  <Label>{translate("status")}</Label>
+                  <select
+                    value={newActivity.status}
+                    onChange={(e) => setNewActivity({ ...newActivity, status: e.target.value as any })}
+                    className="w-full px-3 py-2 border rounded-md h-12"
+                  >
+                    <option value="new">{translate("status_new")}</option>
+                    <option value="possible">{translate("status_possible")}</option>
+                    <option value="rejected">{translate("status_rejected")}</option>
+                    <option value="approved">{translate("status_approved")}</option>
+                  </select>
+                </div>
                 <div>
                   <input
                     type="file"
@@ -2592,13 +2666,28 @@ export default function App() {
                     className="h-12"
                   />
                 </div>
-                <Input
-                  type="number"
-                  placeholder="Цена"
-                  value={newAccommodation.price}
-                  onChange={(e) => setNewAccommodation({ ...newAccommodation, price: e.target.value })}
-                  className="h-12"
-                />
+                <div className="space-y-1">
+                  <Label htmlFor="accommodation_price">{translate("price")}</Label>
+                  <Input
+                    id="accommodation_price"
+                    type="number"
+                    placeholder={translate("price")}
+                    value={newAccommodation.price}
+                    onChange={(e) => setNewAccommodation({ ...newAccommodation, price: e.target.value })}
+                    className="h-12"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="accommodation_guests">{translate("guests")}</Label>
+                  <Input
+                    id="accommodation_guests"
+                    type="number"
+                    placeholder={translate("guests")}
+                    value={newAccommodation.guests}
+                    onChange={(e) => setNewAccommodation({ ...newAccommodation, guests: parseInt(e.target.value) || 1 })}
+                    className="h-12"
+                  />
+                </div>
                 <select
                   value={newAccommodation.currency}
                   onChange={(e) => setNewAccommodation({ ...newAccommodation, currency: e.target.value })}
@@ -2608,6 +2697,19 @@ export default function App() {
                   <option value="RUB">RUB</option>
                   <option value="USD">USD</option>
                 </select>
+                <div className="flex flex-col gap-2">
+                  <Label>{translate("status")}</Label>
+                  <select
+                    value={newAccommodation.status}
+                    onChange={(e) => setNewAccommodation({ ...newAccommodation, status: e.target.value as any })}
+                    className="w-full px-3 py-2 border rounded-md h-12"
+                  >
+                    <option value="new">{translate("status_new")}</option>
+                    <option value="possible">{translate("status_possible")}</option>
+                    <option value="rejected">{translate("status_rejected")}</option>
+                    <option value="approved">{translate("status_approved")}</option>
+                  </select>
+                </div>
                 <div>
                   <input
                     type="file"
@@ -2721,13 +2823,17 @@ export default function App() {
                   onChange={(e) => setNewTransport({ ...newTransport, arrivalPlace: e.target.value })}
                   className="h-12"
                 />
-                <Input
-                  type="number"
-                  placeholder="Количество пассажиров"
-                  value={newTransport.passengers}
-                  onChange={(e) => setNewTransport({ ...newTransport, passengers: parseInt(e.target.value) || 1 })}
-                  className="h-12"
-                />
+                <div className="space-y-1">
+                  <Label htmlFor="transport_passengers">{translate("passengers")}</Label>
+                  <Input
+                    id="transport_passengers"
+                    type="number"
+                    placeholder={translate("passengers")}
+                    value={newTransport.passengers}
+                    onChange={(e) => setNewTransport({ ...newTransport, passengers: parseInt(e.target.value) || 1 })}
+                    className="h-12"
+                  />
+                </div>
                 <Textarea
                   placeholder="Описание"
                   value={newTransport.description}
@@ -2777,16 +2883,29 @@ export default function App() {
                     />
                   )}
                 </div>
+                <div className="flex flex-col gap-2">
+                  <Label>{translate("status")}</Label>
+                  <select
+                    value={newTransport.status}
+                    onChange={(e) => setNewTransport({ ...newTransport, status: e.target.value as any })}
+                    className="w-full px-3 py-2 border rounded-md h-12"
+                  >
+                    <option value="new">{translate("status_new")}</option>
+                    <option value="possible">{translate("status_possible")}</option>
+                    <option value="rejected">{translate("status_rejected")}</option>
+                    <option value="approved">{translate("status_approved")}</option>
+                  </select>
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setTransportDialogOpen(false)}>
-                  Отмена
+                  {translate("cancel")}
                 </Button>
                 <Button
                   onClick={addTransport}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 >
-                  Добавить
+                  {translate("add_generic")}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -2955,6 +3074,19 @@ export default function App() {
                   className="h-12"
                 />
                 <div className="flex flex-col gap-2">
+                  <Label>{translate("status")}</Label>
+                  <select
+                    value={newPlace.status}
+                    onChange={(e) => setNewPlace({ ...newPlace, status: e.target.value as any })}
+                    className="w-full px-3 py-2 border rounded-md h-12"
+                  >
+                    <option value="new">{translate("status_new")}</option>
+                    <option value="possible">{translate("status_possible")}</option>
+                    <option value="rejected">{translate("status_rejected")}</option>
+                    <option value="approved">{translate("status_approved")}</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-2">
                   <div className="text-sm font-medium text-gray-700">{translate("image")}</div>
                   <Input
                     type="file"
@@ -3063,6 +3195,19 @@ export default function App() {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
+                  <Label>{translate("status")}</Label>
+                  <select
+                    value={newActivity.status}
+                    onChange={(e) => setNewActivity({ ...newActivity, status: e.target.value as any })}
+                    className="w-full px-3 py-2 border rounded-md h-12"
+                  >
+                    <option value="new">{translate("status_new")}</option>
+                    <option value="possible">{translate("status_possible")}</option>
+                    <option value="rejected">{translate("status_rejected")}</option>
+                    <option value="approved">{translate("status_approved")}</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-2">
                   <input
                     type="file"
                     accept="image/*"
@@ -3086,7 +3231,7 @@ export default function App() {
                 <Button variant="outline" onClick={() => {
                   setEditActivityDialogOpen(false);
                   setEditingItem(null);
-                  setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new", currency: "EUR" });
+                  setNewActivity({ name: "", description: "", imageUrl: "", link: "", address: "", day: 1, time: "", status: "new", currency: "EUR", price: "" });
                 }}>
                   {translate("cancel")}
                 </Button>
@@ -3165,13 +3310,43 @@ export default function App() {
                     className="h-12"
                   />
                 </div>
-                <Input
-                  type="number"
-                  placeholder={translate("price")}
-                  value={newAccommodation.price}
-                  onChange={(e) => setNewAccommodation({ ...newAccommodation, price: e.target.value })}
-                  className="h-12"
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="edit_accommodation_price">{translate("price")}</Label>
+                    <Input
+                      id="edit_accommodation_price"
+                      type="number"
+                      placeholder={translate("price")}
+                      value={newAccommodation.price}
+                      onChange={(e) => setNewAccommodation({ ...newAccommodation, price: e.target.value })}
+                      className="h-12"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="edit_accommodation_guests">{translate("guests")}</Label>
+                    <Input
+                      id="edit_accommodation_guests"
+                      type="number"
+                      placeholder={translate("guests")}
+                      value={newAccommodation.guests}
+                      onChange={(e) => setNewAccommodation({ ...newAccommodation, guests: parseInt(e.target.value) || 1 })}
+                      className="h-12"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label>{translate("status")}</Label>
+                  <select
+                    value={newAccommodation.status}
+                    onChange={(e) => setNewAccommodation({ ...newAccommodation, status: e.target.value as any })}
+                    className="w-full px-3 py-2 border rounded-md h-12"
+                  >
+                    <option value="new">{translate("status_new")}</option>
+                    <option value="possible">{translate("status_possible")}</option>
+                    <option value="rejected">{translate("status_rejected")}</option>
+                    <option value="approved">{translate("status_approved")}</option>
+                  </select>
+                </div>
                 <div className="flex flex-col gap-2">
                   <input
                     type="file"
@@ -3196,7 +3371,7 @@ export default function App() {
                 <Button variant="outline" onClick={() => {
                   setEditAccommodationDialogOpen(false);
                   setEditingItem(null);
-                  setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new", currency: "EUR" });
+                  setNewAccommodation({ name: "", address: "", imageUrl: "", bookingLink: "", description: "", checkIn: "", checkOut: "", price: "", status: "new", currency: "EUR", guests: 1 });
                 }}>
                   {translate("cancel")}
                 </Button>
@@ -3306,13 +3481,17 @@ export default function App() {
                     className="h-12"
                   />
                 </div>
-                <Input
-                  type="number"
-                  placeholder={translate("passengers")}
-                  value={newTransport.passengers}
-                  onChange={(e) => setNewTransport({ ...newTransport, passengers: parseInt(e.target.value) || 1 })}
-                  className="h-12"
-                />
+                <div className="space-y-1">
+                  <Label htmlFor="edit_transport_passengers">{translate("passengers")}</Label>
+                  <Input
+                    id="edit_transport_passengers"
+                    type="number"
+                    placeholder={translate("passengers")}
+                    value={newTransport.passengers}
+                    onChange={(e) => setNewTransport({ ...newTransport, passengers: parseInt(e.target.value) || 1 })}
+                    className="h-12"
+                  />
+                </div>
                 <Textarea
                   placeholder={translate("description")}
                   value={newTransport.description}
@@ -3581,10 +3760,11 @@ export default function App() {
   if (view === "summary" && activeTrip) {
     // tripUsers is already fetched in useEffect
     
-    // Group activities by day
+    // Group activities by day (only approved)
     const activitiesArray = (activeTrip.activities as unknown as Activity[]) || [];
-    const activitiesByDay = [...activitiesArray]
-      .filter((a: Activity) => a.approved)
+    const approvedActivities = activitiesArray.filter((a: Activity) => a.status === "approved" || a.approved);
+    
+    const activitiesByDay = [...approvedActivities]
       .reduce((acc, activity: Activity) => {
         const day = activity.day || 1;
         if (!acc[day]) acc[day] = [];
@@ -3594,14 +3774,27 @@ export default function App() {
 
     const maxDay = Math.max(0, ...Object.keys(activitiesByDay).map(Number));
 
+    // Group activities by participant (only approved)
+    const activitiesByParticipant = tripUsers.reduce((acc, user) => {
+      const userActivities = approvedActivities.filter(a => (a.votes || []).includes(user.id));
+      if (userActivities.length > 0) {
+        acc[user.id] = userActivities;
+      }
+      return acc;
+    }, {} as Record<string, Activity[]>);
+
+    const approvedPlaces = (activeTrip.places || []).filter(p => p.status === "approved");
+    const approvedTransports = (activeTrip.transports || []).filter(t => t.status === "approved");
+    const approvedAccommodations = (activeTrip.accommodations || []).filter(a => a.status === "approved");
+
     const copySummary = () => {
       let text = `${translate("trip_plan")}: ${activeTrip.name}\n\n`;
       text += `${translate("participants")}: ${tripUsers.map(u => u.name).join(", ")}\n`;
       text += `${translate("total_spent")}: ${getTotalExpenses().toFixed(2)} ${activeTrip.currency || "RUB"}\n\n`;
       
-      if ((activeTrip.places || []).length > 0) {
+      if (approvedPlaces.length > 0) {
         text += `${translate("places").toUpperCase()}:\n`;
-        [...(activeTrip.places || [])].sort((a, b) => a.order - b.order).forEach((place, idx) => {
+        [...approvedPlaces].sort((a, b) => a.order - b.order).forEach((place, idx) => {
           text += `${idx + 1}. ${place.name}\n`;
           text += `   ${translate("address")}: ${place.address}\n`;
           if (place.googleMapsLink) text += `   ${translate("map")}: ${place.googleMapsLink}\n`;
@@ -3609,9 +3802,9 @@ export default function App() {
         text += `\n`;
       }
 
-      if ((activeTrip.transports || []).length > 0) {
+      if (approvedTransports.length > 0) {
         text += `${translate("transport").toUpperCase()}:\n`;
-        (activeTrip.transports || []).forEach((tr) => {
+        approvedTransports.forEach((tr) => {
           const typeNames = { 
             plane: translate("transport_plane"), 
             train: translate("transport_train"), 
@@ -3627,9 +3820,9 @@ export default function App() {
         text += `\n`;
       }
 
-      if ((activeTrip.accommodations || []).length > 0) {
+      if (approvedAccommodations.length > 0) {
         text += `${translate("accommodation").toUpperCase()}:\n`;
-        (activeTrip.accommodations || []).forEach((acc) => {
+        approvedAccommodations.forEach((acc) => {
           text += `• ${acc.name}\n`;
           text += `  ${translate("address")}: ${acc.address}\n`;
           text += `  ${translate("check_in")}: ${acc.checkIn} | ${translate("check_out")}: ${acc.checkOut}\n`;
@@ -3641,8 +3834,10 @@ export default function App() {
       if (maxDay > 0) {
         text += `${translate("daily_plan").toUpperCase()}:\n\n`;
         for (let day = 1; day <= maxDay; day++) {
-          text += `${translate("day").toUpperCase()} ${day}:\n`;
           const dayActivities = activitiesByDay[day] || [];
+          if (dayActivities.length === 0) continue;
+          
+          text += `${translate("day").toUpperCase()} ${day}:\n`;
           dayActivities.sort((a, b) => a.time.localeCompare(b.time));
           dayActivities.forEach((activity) => {
             text += `  ${activity.time} - ${activity.name}\n`;
@@ -3652,6 +3847,21 @@ export default function App() {
           });
           text += `\n`;
         }
+      }
+
+      // Individual Plans in Summary
+      if (Object.keys(activitiesByParticipant).length > 0) {
+        text += `${translate("individual_plans").toUpperCase()}:\n\n`;
+        tripUsers.forEach(user => {
+          const userActs = activitiesByParticipant[user.id];
+          if (userActs && userActs.length > 0) {
+            text += `${user.name}:\n`;
+            userActs.sort((a,b) => (a.day - b.day) || a.time.localeCompare(b.time)).forEach(a => {
+              text += `  • [${translate("day")} ${a.day}] ${a.time} - ${a.name}\n`;
+            });
+            text += `\n`;
+          }
+        });
       }
 
       navigator.clipboard.writeText(text);
@@ -3712,11 +3922,11 @@ export default function App() {
                 </div>
 
                 {/* Places */}
-                {(activeTrip.places || []).length > 0 && (
+                {approvedPlaces.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold mb-3">📍 {translate("places")}</h3>
                     <div className="space-y-2">
-                      {[...(activeTrip.places || [])].sort((a, b) => a.order - b.order).map((place) => (
+                      {[...approvedPlaces].sort((a, b) => a.order - b.order).map((place) => (
                         <div key={place.id} className="p-3 bg-gray-50 rounded">
                           <div className="font-medium">{place.name}</div>
                           <div className="text-sm text-gray-600">{place.address}</div>
@@ -3737,11 +3947,11 @@ export default function App() {
                 )}
 
                 {/* Transport */}
-                {(activeTrip.transports || []).length > 0 && (
+                {approvedTransports.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold mb-3">🚗 {translate("transport")}</h3>
                     <div className="space-y-2">
-                      {(activeTrip.transports || []).map((tr) => {
+                      {approvedTransports.map((tr) => {
                         const typeIcons = { plane: "✈️", train: "🚂", bus: "🚌", car: "🚗", ship: "🚢", other: "🚛" };
                         return (
                           <div key={tr.id} className="p-3 bg-gray-50 rounded">
@@ -3758,11 +3968,11 @@ export default function App() {
                 )}
 
                 {/* Accommodations */}
-                {(activeTrip.accommodations || []).length > 0 && (
+                {approvedAccommodations.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold mb-3">🏠 {translate("accommodation")}</h3>
                     <div className="space-y-2">
-                      {(activeTrip.accommodations || []).map((acc) => (
+                      {approvedAccommodations.map((acc) => (
                         <div key={acc.id} className="p-3 bg-gray-50 rounded">
                           <div className="font-medium">{acc.name}</div>
                           <div className="text-sm text-gray-600">{acc.address}</div>
@@ -3792,38 +4002,68 @@ export default function App() {
                     <div className="space-y-4">
                       {Array.from({ length: maxDay }, (_, i) => i + 1).map((day) => {
                         const dayActivities = activitiesByDay[day] || [];
+                        if (dayActivities.length === 0) return null;
+                        
                         dayActivities.sort((a: Activity, b: Activity) => a.time.localeCompare(b.time));
                         return (
                           <div key={day} className="border-l-4 border-blue-500 pl-4">
                             <h4 className="font-semibold text-lg mb-2">{translate("day")} {day}</h4>
-                            {dayActivities.length === 0 ? (
-                              <p className="text-gray-400 text-sm">{translate("no_activities_day")}</p>
-                            ) : (
-                              <div className="space-y-3">
-                                {dayActivities.map((activity: Activity) => (
-                                  <div key={activity.id} className="p-3 bg-green-50 rounded border border-green-200">
-                                    <div className="font-medium flex items-center gap-2">
-                                      <span className="text-green-600">✓</span>
-                                      {activity.time} - {activity.name}
-                                    </div>
-                                    <div className="text-sm text-gray-600 mt-1">📍 {activity.address}</div>
-                                    {activity.link && (
-                                      <a
-                                        href={activity.link}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 text-sm hover:underline"
-                                      >
-                                        🔗 {translate("link")}
-                                      </a>
-                                    )}
-                                    {activity.description && (
-                                      <div className="text-sm text-gray-600 mt-1">{activity.description}</div>
-                                    )}
+                            <div className="space-y-3">
+                              {dayActivities.map((activity: Activity) => (
+                                <div key={activity.id} className="p-3 bg-green-50 rounded border border-green-200">
+                                  <div className="font-medium flex items-center gap-2">
+                                    <span className="text-green-600">✓</span>
+                                    {activity.time} - {activity.name}
                                   </div>
-                                ))}
+                                  <div className="text-sm text-gray-600 mt-1">📍 {activity.address}</div>
+                                  {activity.link && (
+                                    <a
+                                      href={activity.link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 text-sm hover:underline"
+                                    >
+                                      🔗 {translate("link")}
+                                    </a>
+                                  )}
+                                  {activity.description && (
+                                    <div className="text-sm text-gray-600 mt-1">{activity.description}</div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Individual Plans */}
+                {Object.keys(activitiesByParticipant).length > 0 && (
+                  <div className="pt-6 border-t">
+                    <h3 className="text-lg font-semibold mb-4">👤 {translate("activities_by_participant")}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {tripUsers.map((user) => {
+                        const userActs = activitiesByParticipant[user.id];
+                        if (!userActs || userActs.length === 0) return null;
+                        
+                        return (
+                          <div key={user.id} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                                {user.name[0].toUpperCase()}
                               </div>
-                            )}
+                              <span className="font-semibold text-gray-800">{user.name}</span>
+                            </div>
+                            <div className="space-y-2">
+                              {userActs.sort((a,b) => (a.day - b.day) || a.time.localeCompare(b.time)).map(a => (
+                                <div key={a.id} className="text-sm flex gap-2">
+                                  <span className="text-blue-500 font-medium whitespace-nowrap">д.{a.day} {a.time}</span>
+                                  <span className="text-gray-700">{a.name}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         );
                       })}
