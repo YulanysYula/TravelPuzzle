@@ -524,7 +524,16 @@ export default function App() {
   const handleTripCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!activeTrip || !e.target.files?.[0]) return;
     const file = e.target.files[0];
+    
+    if (file.size > 5 * 1024 * 1024) {
+      alert(translate("file_too_large"));
+      return;
+    }
+    
     const reader = new FileReader();
+    reader.onerror = () => {
+      alert(translate("error_loading_image"));
+    };
     reader.onloadend = () => {
       const updated: Trip = {
         ...activeTrip,
@@ -535,6 +544,7 @@ export default function App() {
       saveTrip(updated);
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
 
@@ -1053,6 +1063,7 @@ export default function App() {
       }
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   // Accommodation management
@@ -1188,8 +1199,19 @@ export default function App() {
     // tripUsers is already fetched in useEffect
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 pt-20">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div 
+        className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 pt-20 relative overflow-x-hidden"
+        style={activeTrip.coverImage ? {
+          backgroundImage: `url(${activeTrip.coverImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'fixed',
+        } : {}}
+      >
+        {activeTrip.coverImage && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm pointer-events-none" />
+        )}
+        <div className="max-w-4xl mx-auto space-y-6 relative z-10">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -1220,16 +1242,8 @@ export default function App() {
             transition={{ delay: 0.1 }}
           >
             <Card 
-              className="shadow-2xl border-0 bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 backdrop-blur-sm relative overflow-hidden"
-              style={activeTrip.coverImage ? {
-                backgroundImage: `url(${activeTrip.coverImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              } : {}}
+              className="shadow-2xl border-0 bg-white/80 backdrop-blur-md relative overflow-hidden"
             >
-              {activeTrip.coverImage && (
-                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-              )}
               <CardContent className="p-6 relative z-10">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex-1">
@@ -1255,17 +1269,21 @@ export default function App() {
                   </div>
                   <div className="flex flex-col gap-2">
                     {/* Trip cover image upload */}
-                    <label className="cursor-pointer">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleTripCoverImageUpload}
-                      />
-                      <Button variant="outline" size="sm" className="w-full">
-                        📷 {translate("cover")}
-                      </Button>
-                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      ref={tripCoverInputRef}
+                      onChange={handleTripCoverImageUpload}
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => tripCoverInputRef.current?.click()}
+                    >
+                      📷 {translate("cover")}
+                    </Button>
                   </div>
                 </div>
                 <div className="flex gap-2 mt-4">
@@ -3052,17 +3070,22 @@ export default function App() {
                     className="h-12"
                   />
                 </div>
-                <label className="cursor-pointer">
+                <div className="flex flex-col gap-2">
                   <input
                     type="file"
                     accept="image/*"
                     className="hidden"
+                    ref={activityFileInputRef}
                     onChange={handleActivityImageUpload}
                   />
-                  <Button variant="outline" className="w-full">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => activityFileInputRef.current?.click()}
+                  >
                     {newActivity.imageUrl ? translate("image_uploaded") : translate("upload_image")}
                   </Button>
-                </label>
+                </div>
                 {newActivity.imageUrl && (
                   <img src={newActivity.imageUrl} alt="Preview" className="w-full h-32 object-cover rounded" />
                 )}
@@ -3157,17 +3180,22 @@ export default function App() {
                   onChange={(e) => setNewAccommodation({ ...newAccommodation, price: e.target.value })}
                   className="h-12"
                 />
-                <label className="cursor-pointer">
+                <div className="flex flex-col gap-2">
                   <input
                     type="file"
                     accept="image/*"
                     className="hidden"
+                    ref={accommodationFileInputRef}
                     onChange={handleAccommodationImageUpload}
                   />
-                  <Button variant="outline" className="w-full">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => accommodationFileInputRef.current?.click()}
+                  >
                     {newAccommodation.imageUrl ? translate("image_uploaded") : translate("upload_image")}
                   </Button>
-                </label>
+                </div>
                 {newAccommodation.imageUrl && (
                   <img src={newAccommodation.imageUrl} alt="Preview" className="w-full h-32 object-cover rounded" />
                 )}
