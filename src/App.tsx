@@ -989,7 +989,7 @@ export default function App() {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="Email"
+                      placeholder={translate("email")}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       error={!!formErrors.email}
@@ -1211,7 +1211,7 @@ export default function App() {
         } : {}}
       >
         {activeTrip.coverImage && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm pointer-events-none" />
+          <div className="fixed inset-0 backdrop-blur-sm pointer-events-none" />
         )}
         <div className="max-w-4xl mx-auto space-y-6 relative z-10">
           <motion.div
@@ -2288,7 +2288,7 @@ export default function App() {
                   <Input
                     id="invite_email"
                     type="email"
-                    placeholder="Email участника"
+                    placeholder={translate("participant_email")}
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     error={!!formErrors.invite}
@@ -2639,19 +2639,19 @@ export default function App() {
                   />
                 </div>
                 <Textarea
-                  placeholder="Описание"
+                  placeholder={translate("description")}
                   value={newActivity.description}
                   onChange={(e) => setNewActivity({ ...newActivity, description: e.target.value })}
                   className="min-h-[80px]"
                 />
                 <Input
-                  placeholder="Адрес"
+                  placeholder={translate("address")}
                   value={newActivity.address}
                   onChange={(e) => setNewActivity({ ...newActivity, address: e.target.value })}
                   className="h-12"
                 />
                 <Input
-                  placeholder="Ссылка"
+                  placeholder={translate("link")}
                   value={newActivity.link}
                   onChange={(e) => setNewActivity({ ...newActivity, link: e.target.value })}
                   className="h-12"
@@ -2745,19 +2745,19 @@ export default function App() {
                   {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
                 </div>
                 <Input
-                  placeholder="Адрес"
+                  placeholder={translate("address")}
                   value={newAccommodation.address}
                   onChange={(e) => setNewAccommodation({ ...newAccommodation, address: e.target.value })}
                   className="h-12"
                 />
                 <Input
-                  placeholder="Ссылка на Booking.com"
+                  placeholder={translate("booking_link")}
                   value={newAccommodation.bookingLink}
                   onChange={(e) => setNewAccommodation({ ...newAccommodation, bookingLink: e.target.value })}
                   className="h-12"
                 />
                 <Textarea
-                  placeholder="Описание"
+                  placeholder={translate("description")}
                   value={newAccommodation.description}
                   onChange={(e) => setNewAccommodation({ ...newAccommodation, description: e.target.value })}
                   className="min-h-[80px]"
@@ -2912,25 +2912,25 @@ export default function App() {
                   </div>
                 </div>
                 <Input
-                  placeholder="Время отправления"
+                  placeholder={translate("departure_time")}
                   value={newTransport.departureTime}
                   onChange={(e) => setNewTransport({ ...newTransport, departureTime: e.target.value })}
                   className="h-12"
                 />
                 <Input
-                  placeholder="Место отправления"
+                  placeholder={translate("departure_place")}
                   value={newTransport.departurePlace}
                   onChange={(e) => setNewTransport({ ...newTransport, departurePlace: e.target.value })}
                   className="h-12"
                 />
                 <Input
-                  placeholder="Время прибытия"
+                  placeholder={translate("arrival_time")}
                   value={newTransport.arrivalTime}
                   onChange={(e) => setNewTransport({ ...newTransport, arrivalTime: e.target.value })}
                   className="h-12"
                 />
                 <Input
-                  placeholder="Место прибытия"
+                  placeholder={translate("arrival_place")}
                   value={newTransport.arrivalPlace}
                   onChange={(e) => setNewTransport({ ...newTransport, arrivalPlace: e.target.value })}
                   className="h-12"
@@ -2947,7 +2947,7 @@ export default function App() {
                   />
                 </div>
                 <Textarea
-                  placeholder="Описание"
+                  placeholder={translate("description")}
                   value={newTransport.description}
                   onChange={(e) => setNewTransport({ ...newTransport, description: e.target.value })}
                   className="min-h-[80px]"
